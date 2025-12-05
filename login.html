@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="assets/login.css">
+  <title>Логин</title>
+</head>
+<body>
+
+  <h2>Вход</h2>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Пароль">
+  <button id="login-btn">Войти</button>
+
+  <script type="module">
+    import { login } from "./js/auth.js";
+    import { qs, showMessage } from "./js/ui.js";
+
+    qs("login-btn").onclick = async () => {
+      try {
+        await login(qs("email").value, qs("password").value);
+        window.location.href = "profile.html";
+      } catch (e) {
+        showMessage(e.message);
+      }
+    };
+  </script>
+
+</body>
+</html>

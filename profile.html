@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/profile.css">
+  <title>Профиль</title>
+</head>
+<body>
+  <h2>Профиль</h2>
+
+  <p id="user-email"></p>
+  <button id="logout-btn">Выйти</button>
+
+  <script type="module">
+    import { auth } from "./js/firebase-config.js";
+    import { logout } from "./js/auth.js";
+    import { requireAuth } from "./js/guard.js";
+    import { qs } from "./js/ui.js";
+
+    requireAuth();
+
+    auth.onAuthStateChanged(user => {
+      if (user) qs("user-email").textContent = "Вы вошли как: " + user.email;
+    });
+
+    qs("logout-btn").onclick = () => logout();
+  </script>
+</body>
+</html>
