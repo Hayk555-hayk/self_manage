@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Financial Manager</title>
+    <link rel="stylesheet" href="assets/finance.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>💰 Financial Manager</h2>
+        <p id="user-email"></p>
+        <button id="logout-btn" class="logout-btn">Log Out</button>
+
+        <section class="data-input-section">
+            <h3>Add Financial Data</h3>
+            
+            <form id="finance-form" class="input-form">
+                <select id="data-type" required>
+                    <option value="" disabled selected>Select Data Type</option>
+                    <option value="salary">Salary</option>
+                    <option value="savings">Savings</option>
+                    <option value="credit_debt">Credit Debt</option>
+                    <option option="monthly_payment">Monthly Credit Payment</option>
+                </select>
+                <input type="number" id="amount-input" placeholder="Amount (USD)" required min="0">
+                <button type="submit">Save Data</button>
+            </form>
+        </section>
+
+        <section class="debt-list-section">
+            <h3>Credit & Debts</h3>
+            <ul id="debt-list">
+                </ul>
+        </section>
+
+        <section class="summary-section">
+            <h3>Financial Overview</h3>
+            <div class="chart-container">
+                <canvas id="financeChart"></canvas>
+            </div>
+            <div id="summary-metrics" class="metrics">
+                </div>
+        </section>
+    </div>
+
+    <script type="module">
+        import { auth } from "./js/firebase-config.js";
+        import { logout } from "./js/auth.js";
+        import { initFinanceController, addFinanceData } from "./js/financeController.js";
+        
+        const qs = (id) => document.getElementById(id);
+        const showMessage = (msg) => console.log(msg); 
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                qs("user-email").textContent = "Logged in as: " + user.email;
+                initFinanceController(); // Инициализация контроллера
+            } else {
+                window.location.href = "login.html"; 
+            }
+        });
+
+        qs("logout-btn").onclick = () => logout();
+
+        // Обработчик формы
+        qs("finance-form").onsubmit = async (e) => {
+            e.preventDefault();
+            
+            const dataType = qs("data-type").value;
+            const amount = parseFloat(qs("amount-input").value);
+            
+            if (dataType && amount > 0) {
+                try {
+                    await addFinanceData(dataType, amount);
+                    qs("amount-input").value = '';
+                } catch (error) {
+                    showMessage("Error saving data: " + error.message);
+                }
+            } else {
+                showMessage("Please select a data type and enter a valid amount.");
+            }
+        };
+    </script>
+</body>
+</html>
