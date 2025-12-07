@@ -5,12 +5,13 @@
 */
 
 :root {
-    --primary-color: #3498db; /* Синий для акцентов */
-    --success-color: #2ecc71; /* Зеленый для доходов/сбережений */
-    --danger-color: #e74c3c; /* Красный для долгов */
-    --background-color: #ecf0f1; /* Светло-серый фон страницы */
+    --primary-color: #3498db; 
+    --success-color: #2ecc71; 
+    --danger-color: #e74c3c; 
+    --warning-color: #f1c40f; /* Добавлен для сбережений */
+    --background-color: #ecf0f1; 
     --card-bg-color: #ffffff;
-    --text-color: #2c3e50; /* Темно-синий текст */
+    --text-color: #2c3e50; 
     --border-radius: 10px;
     --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -29,7 +30,7 @@ body {
 }
 
 .container {
-    max-width: 1000px;
+    max-width: 1200px; /* Увеличен для размещения 3-х графиков */
     margin: 0 auto;
     background-color: #fff;
     padding: 30px;
@@ -50,7 +51,6 @@ h3 {
     margin-bottom: 20px;
 }
 
-/* Кнопка выхода */
 .logout-btn {
     float: right;
     background: var(--danger-color);
@@ -77,6 +77,7 @@ h3 {
     display: flex;
     gap: 10px;
     margin-bottom: 30px;
+    flex-wrap: wrap; /* Позволяет форме переноситься на мобильных */
 }
 
 .input-form select,
@@ -85,36 +86,31 @@ h3 {
     border: 1px solid #ccc;
     border-radius: 5px;
     flex-grow: 1;
+    min-width: 150px;
 }
 
 .input-form button {
-    background-color: var(--success-color);
+    background-color: var(--primary-color);
     color: white;
     border: none;
     padding: 10px 20px;
     border-radius: 5px;
     cursor: pointer;
     transition: background 0.3s;
+    min-width: 150px;
 }
 
 .input-form button:hover {
-    background-color: #27ae60;
+    background-color: #2980b9;
 }
 
-/* Секция статистики и графиков */
-
-.chart-container {
-    width: 100%;
-    max-width: 600px;
-    margin: 20px auto;
-}
-
-/* Метрики (Сбережения, Долги) */
+/* Метрики (Обзор) */
 .metrics {
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
     gap: 20px;
-    margin-top: 30px;
+    margin-top: 20px;
+    flex-wrap: wrap;
 }
 
 .metric-card {
@@ -124,15 +120,11 @@ h3 {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     text-align: center;
     flex: 1;
-}
-
-.metric-card h4 {
-    margin-bottom: 5px;
-    font-size: 1.1em;
+    min-width: 180px;
 }
 
 .metric-card p {
-    font-size: 1.8em;
+    font-size: 1.6em;
     font-weight: 600;
 }
 
@@ -144,24 +136,66 @@ h3 {
     color: var(--danger-color);
 }
 
-/* Стилизация списка долгов */
-#debt-list li {
-    background: #fdfefe;
-    border: 1px solid #eee;
-    padding: 10px 15px;
-    margin-bottom: 8px;
-    border-left: 5px solid var(--danger-color);
-    border-radius: 5px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    list-style: none;
+.networth-value {
+    color: var(--primary-color);
 }
 
-#debt-list li button {
-    background: none;
-    border: none;
-    color: var(--danger-color);
-    cursor: pointer;
-    font-size: 1.2em;
+/*
+====================================
+  Стили для графиков
+====================================
+*/
+
+.charts-section {
+    margin-top: 40px;
+}
+
+.chart-controls {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.chart-controls select {
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.chart-card {
+    background: var(--card-bg-color);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    min-height: 350px; /* Чтобы все графики были одинаковой высоты */
+}
+
+.chart-card h4 {
+    text-align: center;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.chart-card.wide {
+    grid-column: 1 / -1; /* Занимает всю ширину сетки для графика динамики */
+}
+
+/* Медиа-запросы */
+@media (max-width: 768px) {
+    .charts-grid {
+        grid-template-columns: 1fr;
+    }
+    .input-form {
+        flex-direction: column;
+    }
+    .metric-card {
+        min-width: 100%;
+    }
 }

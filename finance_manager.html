@@ -2,55 +2,79 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Financial Manager</title>
+    <title>Financial Dashboard</title>
     <link rel="stylesheet" href="assets/finance.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h2>💰 Financial Manager</h2>
+        <h2>💰 Financial Dashboard</h2>
         <p id="user-email"></p>
         <button id="logout-btn" class="logout-btn">Log Out</button>
 
         <section class="data-input-section">
-            <h3>Add Financial Data</h3>
+            <h3>Add Transaction or Income</h3>
             
-            <form id="finance-form" class="input-form">
-                <select id="data-type" required>
-                    <option value="" disabled selected>Select Data Type</option>
-                    <option value="salary">Salary</option>
-                    <option value="savings">Savings</option>
-                    <option value="credit_debt">Credit Debt</option>
-                    <option option="monthly_payment">Monthly Credit Payment</option>
+            <form id="transaction-form" class="input-form">
+                <select id="transaction-type" required>
+                    <option value="" disabled selected>Select Type</option>
+                    <option value="Income">Income (Salary, Bonus, etc.)</option>
+                    <option value="Expense">Expense (Food, bills, etc.)</option>
+                    <option value="Savings_Deposit">Savings Deposit</option>
+                    <option value="Credit_Payment">Credit Payment</option>
+                    <option value="Debt_Added">New Debt/Loan</option>
                 </select>
-                <input type="number" id="amount-input" placeholder="Amount (USD)" required min="0">
-                <button type="submit">Save Data</button>
+                <input type="number" id="amount-input" placeholder="Amount (AMD)" required min="0">
+                <input type="text" id="description-input" placeholder="Description (e.g., 'Groceries', 'Client Payout')">
+                <button type="submit">Save Transaction</button>
             </form>
         </section>
 
-        <section class="debt-list-section">
-            <h3>Credit & Debts</h3>
-            <ul id="debt-list">
-                </ul>
-        </section>
-
         <section class="summary-section">
-            <h3>Financial Overview</h3>
-            <div class="chart-container">
-                <canvas id="financeChart"></canvas>
-            </div>
+            <h3>Current Financial Metrics</h3>
             <div id="summary-metrics" class="metrics">
                 </div>
         </section>
+
+        <section class="charts-section">
+            <h3>Visual Breakdown</h3>
+
+            <div class="chart-controls">
+                <label for="time-filter">Show Data for:</label>
+                <select id="time-filter">
+                    <option value="day">Current Day</option>
+                    <option value="week">Last 7 Days</option>
+                    <option value="month" selected>Last 30 Days</option>
+                    <option value="year">Last Year</option>
+                </select>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h4>1. Income vs Expense (Bar Chart)</h4>
+                    <canvas id="chartIncomeExpense"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h4>2. Net Worth & Savings (Doughnut Chart)</h4>
+                    <canvas id="chartNetWorth"></canvas>
+                </div>
+                
+                <div class="chart-card wide">
+                    <h4>3. Financial Flow Over Time</h4>
+                    <canvas id="chartTimeFlow"></canvas>
+                </div>
+            </div>
+        </section>
+
     </div>
 
     <script type="module">
         import { auth } from "./js/firebase-config.js";
         import { logout } from "./js/auth.js";
-        import { initFinanceController, addFinanceData } from "./js/financeController.js";
+        import { initFinanceController, addTransaction } from "./js/financeController.js";
         
         const qs = (id) => document.getElementById(id);
-        const showMessage = (msg) => console.log(msg); 
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -64,22 +88,30 @@
         qs("logout-btn").onclick = () => logout();
 
         // Обработчик формы
-        qs("finance-form").onsubmit = async (e) => {
+        qs("transaction-form").onsubmit = async (e) => {
             e.preventDefault();
             
-            const dataType = qs("data-type").value;
+            const type = qs("transaction-type").value;
             const amount = parseFloat(qs("amount-input").value);
+            const description = qs("description-input").value.trim() || type;
             
-            if (dataType && amount > 0) {
+            if (type && amount > 0) {
                 try {
-                    await addFinanceData(dataType, amount);
+                    await addTransaction(type, amount, description);
                     qs("amount-input").value = '';
+                    qs("description-input").value = '';
                 } catch (error) {
-                    showMessage("Error saving data: " + error.message);
+                    console.error("Error saving data:", error.message);
                 }
             } else {
-                showMessage("Please select a data type and enter a valid amount.");
+                console.warn("Please select a data type and enter a valid amount.");
             }
+        };
+
+        // Обработчик изменения фильтра времени (для графика 3)
+        qs("time-filter").onchange = () => {
+             // Повторная инициализация контроллера обновит все графики
+             initFinanceController(); 
         };
     </script>
 </body>
