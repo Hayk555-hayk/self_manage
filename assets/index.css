@@ -1,147 +1,134 @@
+/*
+====================================
+  Общие стили
+====================================
+*/
+
+:root {
+    /* Цветовая палитра */
+    --primary-color: #4a90e2; /* Яркий синий для акцентов */
+    --secondary-color: #795548; /* Коричневый/земляной для контраста, если нужен */
+    --background-color: #f7f9fc; /* Светло-серый, почти белый фон */
+    --text-color: #333333; /* Темно-серый для основного текста */
+    --link-hover-color: #357ABD; /* Более темный синий при наведении */
+    --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Мягкая тень */
+    --border-radius: 8px;
+}
+
 * {
+    /* Сброс стандартных отступов и рамок */
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
 body {
+    /* Основные стили страницы */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
+    background-color: var(--background-color);
+    color: var(--text-color);
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    padding: 20px;
+    justify-content: center; /* Центрируем контент по горизонтали */
+    align-items: center; /* Центрируем контент по вертикали */
+    min-height: 100vh; /* Минимальная высота - весь экран */
+    margin: 20px; /* Небольшой отступ на случай маленьких экранов */
 }
+
+/*
+====================================
+  Стили контейнера
+====================================
+*/
 
 .container {
-    text-align: center;
-    max-width: 500px;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
+    /* Контейнер для центрирования и красивого оформления */
+    background: #ffffff;
     padding: 40px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
 }
+
+/*
+====================================
+  Стили заголовка
+====================================
+*/
 
 h1 {
-    font-size: 3.5rem;
-    margin-bottom: 20px;
-    background: linear-gradient(45deg, #fff, #f0f0f0);
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    font-size: 2.5em;
+    color: var(--primary-color);
+    margin-bottom: 30px;
+    font-weight: 300; /* Более легкое начертание */
+    letter-spacing: 1px;
 }
 
-.subtitle {
-    font-size: 1.2rem;
-    margin-bottom: 40px;
-    opacity: 0.9;
-    line-height: 1.6;
-}
+/*
+====================================
+  Стили ссылок (кнопок)
+====================================
+*/
 
-.auth-links {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-}
-
-.auth-btn {
-    display: inline-block;
-    padding: 15px 30px;
-    font-size: 1.1rem;
+a {
+    /* Стилизуем ссылки как кнопки */
+    display: block; /* Ссылки будут занимать всю ширину */
+    text-decoration: none; /* Убираем подчеркивание */
+    color: #ffffff; /* Белый текст */
+    padding: 12px 25px;
+    margin: 15px 0;
+    border-radius: 50px; /* Сильно скругленные углы */
+    font-size: 1.1em;
     font-weight: 600;
-    text-decoration: none;
-    border-radius: 50px;
-    transition: all 0.3s ease;
-    text-align: center;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    border: none;
-    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease; /* Плавные переходы */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.login-btn {
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    color: white;
-    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+/* Первая ссылка - Войти (Основной цвет) */
+a[href="login.html"] {
+    background-color: var(--primary-color);
+    border: 2px solid var(--primary-color);
 }
 
-.register-btn {
-    background: linear-gradient(45deg, #2196F3, #1976D2);
-    color: white;
-    box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);
+a[href="login.html"]:hover {
+    background-color: var(--link-hover-color);
+    transform: translateY(-2px); /* Небольшой подъем при наведении */
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.auth-btn:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+/* Вторая ссылка - Регистрация (Альтернативный/Контурный стиль) */
+a[href="register.html"] {
+    background-color: transparent; /* Прозрачный фон */
+    color: var(--primary-color); /* Синий текст */
+    border: 2px solid var(--primary-color); /* Синяя рамка */
 }
 
-.auth-btn:active {
-    transform: translateY(-1px);
+a[href="register.html"]:hover {
+    background-color: var(--primary-color); /* При наведении заливаем цветом */
+    color: #ffffff; /* И делаем текст белым */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
-.features {
-    margin-top: 50px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 20px;
-    width: 100%;
-}
+/*
+====================================
+  Адаптивность для маленьких экранов
+====================================
+*/
 
-.feature {
-    background: rgba(255, 255, 255, 0.08);
-    padding: 20px;
-    border-radius: 15px;
-    backdrop-filter: blur(5px);
-}
-
-.feature i {
-    font-size: 2rem;
-    margin-bottom: 10px;
-    display: block;
-}
-
-footer {
-    margin-top: 50px;
-    opacity: 0.7;
-    font-size: 0.9rem;
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .container {
         padding: 30px 20px;
     }
-    
+
     h1 {
-        font-size: 2.5rem;
+        font-size: 2em;
+        margin-bottom: 25px;
     }
-    
-    .auth-links {
-        max-width: 100%;
-    }
-}
 
-/* Анимация появления */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+    a {
+        padding: 10px 20px;
+        font-size: 1em;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.container {
-    animation: fadeIn 0.8s ease-out;
 }

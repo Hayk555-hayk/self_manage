@@ -1,3 +1,19 @@
+/*
+====================================
+  Общие переменные
+====================================
+*/
+
+:root {
+    --primary-color: #4a90e2; /* Яркий синий */
+    --background-color: #f7f9fc; /* Светло-серый фон страницы */
+    --text-color: #333333;
+    --input-border-color: #dddddd;
+    --box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15); /* Более выразительная тень */
+    --border-radius: 12px;
+    --button-radius: 50px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,186 +21,133 @@
 }
 
 body {
+    /* 1. Настройка для центрирования с помощью Flexbox */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #6e8efb, #a777e3);
+    background-color: var(--background-color);
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+    display: flex; /* Активируем Flexbox */
+    justify-content: center; /* Центрируем по горизонтали */
+    align-items: center; /* Центрируем по вертикали */
+    padding: 20px; /* Отступ на случай маленьких экранов */
+    line-height: 1.6;
 }
 
-.login-container {
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
+/*
+====================================
+  Стили контейнера формы (div)
+====================================
+*/
+
+/* Стиль для вашего div-контейнера */
+div {
+    background: #ffffff; /* Белый фон карточки */
     padding: 40px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow); /* Применяем красивую тень */
+    text-align: center; /* Центрирование содержимого внутри карточки */
     width: 100%;
-    max-width: 400px;
-    position: relative;
-    overflow: hidden;
+    max-width: 400px; /* Фиксируем максимальную ширину */
 }
 
-.login-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 5px;
-    background: linear-gradient(90deg, #4CAF50, #2196F3);
-}
+/*
+====================================
+  Стили заголовка
+====================================
+*/
 
 h2 {
-    color: #333;
-    text-align: center;
+    font-size: 2em;
+    color: var(--primary-color);
     margin-bottom: 30px;
-    font-size: 2rem;
-    font-weight: 600;
+    font-weight: 300;
+    letter-spacing: 0.5px;
 }
 
-.input-group {
-    margin-bottom: 20px;
-    position: relative;
-}
+/*
+====================================
+  Стили полей ввода (Input)
+====================================
+*/
 
-.input-group label {
+input {
+    /* Делаем поля блочными и на всю ширину контейнера */
     display: block;
-    margin-bottom: 8px;
-    color: #555;
-    font-weight: 500;
-    font-size: 0.9rem;
-}
-
-.input-group input {
     width: 100%;
-    padding: 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    background: #f9f9f9;
+    padding: 14px 18px;
+    margin-bottom: 15px; /* Отступ между полями */
+    border: 1px solid var(--input-border-color);
+    border-radius: var(--border-radius);
+    font-size: 1em;
+    color: var(--text-color);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.input-group input:focus {
+input:focus {
+    border-color: var(--primary-color);
     outline: none;
-    border-color: #4CAF50;
-    background: white;
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
 }
 
-.input-group input::placeholder {
-    color: #aaa;
+::placeholder {
+    color: #999999;
 }
 
-.input-icon {
-    position: absolute;
-    right: 15px;
-    top: 40px;
-    color: #999;
-}
+/*
+====================================
+  Стили кнопки
+====================================
+*/
 
-.login-btn {
+button {
+    /* Делаем кнопку блочной и на всю ширину */
+    display: block;
     width: 100%;
-    padding: 15px;
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    color: white;
+    background-color: var(--primary-color);
+    color: #ffffff;
     border: none;
-    border-radius: 10px;
-    font-size: 1.1rem;
+    padding: 14px 25px;
+    margin-top: 25px; /* Отступ перед кнопкой */
+    border-radius: var(--button-radius);
+    font-size: 1.1em;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 10px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
-.login-btn:hover {
-    background: linear-gradient(45deg, #45a049, #4CAF50);
+button:hover {
+    background-color: #357ABD;
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(76, 175, 80, 0.3);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
 }
 
-.login-btn:active {
+button:active {
     transform: translateY(0);
 }
 
-.links {
-    text-align: center;
-    margin-top: 25px;
-    padding-top: 25px;
-    border-top: 1px solid #eee;
-}
+/*
+====================================
+  Адаптивность
+====================================
+*/
 
-.links a {
-    color: #2196F3;
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.3s ease;
-}
-
-.links a:hover {
-    color: #1976D2;
-    text-decoration: underline;
-}
-
-.register-link {
-    display: block;
-    margin-top: 10px;
-    color: #666;
-}
-
-.message {
-    background: #ffebee;
-    color: #c62828;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    text-align: center;
-    font-size: 0.9rem;
-    display: none;
-}
-
-.message.show {
-    display: block;
-    animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
+@media (max-width: 450px) {
+    /* Для мобильных устройств делаем карточку на весь экран */
+    body {
+        /* Убираем центрирование, чтобы карточка прижалась к верху */
+        align-items: flex-start;
+        padding: 0;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
-/* Адаптивность */
-@media (max-width: 480px) {
-    .login-container {
+    div {
+        max-width: 100%;
+        height: 100vh; /* Занимаем всю высоту для мобильных */
+        border-radius: 0;
+        box-shadow: none;
         padding: 30px 20px;
     }
-    
+
     h2 {
-        font-size: 1.8rem;
+        font-size: 1.8em;
     }
-}
-
-/* Анимация формы */
-@keyframes formAppear {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.login-container {
-    animation: formAppear 0.6s ease-out;
 }

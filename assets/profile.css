@@ -1,3 +1,21 @@
+/*
+====================================
+  Общие переменные и сброс
+====================================
+*/
+
+:root {
+    --primary-color: #4a90e2; /* Яркий синий */
+    --background-color: #f7f9fc; /* Светло-серый фон страницы */
+    --text-color: #333333;
+    --secondary-text-color: #666666; /* Более светлый текст для почты */
+    --input-border-color: #dddddd;
+    --goal-bg-color: #ffffff; /* Фон для карточек целей */
+    --box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08); /* Легкая тень для контейнера */
+    --border-radius: 8px;
+    --button-radius: 50px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,241 +23,177 @@
 }
 
 body {
+    /* Фон и базовый шрифт */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    min-height: 100vh;
-    padding: 20px;
-    color: #333;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    padding: 30px 20px;
+    max-width: 700px; /* Ограничиваем ширину контента для лучшей читаемости */
+    margin: 0 auto; /* Центрируем контент */
 }
 
-.profile-container {
-    max-width: 800px;
-    margin: 0 auto;
-    background: white;
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-}
+/*
+====================================
+  Стили заголовков и информации о пользователе
+====================================
+*/
 
-.profile-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 40px;
-    text-align: center;
-    position: relative;
-}
-
-.profile-header h2 {
-    font-size: 2.2rem;
-    margin-bottom: 10px;
+h2 {
+    font-size: 2.2em;
+    color: var(--primary-color);
+    margin-bottom: 5px;
     font-weight: 600;
+}
+
+h3 {
+    font-size: 1.5em;
+    color: var(--text-color);
+    margin-top: 30px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--input-border-color);
+    padding-bottom: 5px;
 }
 
 #user-email {
-    font-size: 1.1rem;
-    opacity: 0.9;
-    margin-bottom: 30px;
+    color: var(--secondary-text-color);
+    font-size: 0.9em;
+    margin-bottom: 20px;
+    font-style: italic;
 }
 
-.logout-btn {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    padding: 12px 30px;
-    border-radius: 50px;
-    font-size: 1rem;
+/*
+====================================
+  Стили кнопки "Выйти"
+====================================
+*/
+
+#logout-btn {
+    background-color: transparent;
+    color: #e74c3c; /* Красный цвет для кнопки выхода */
+    border: 2px solid #e74c3c;
+    padding: 8px 20px;
+    border-radius: var(--button-radius);
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    display: block; /* Делаем блочным для полной ширины на мобильных */
+    width: 100%;
+    max-width: 150px; /* Ограничиваем ширину на десктопе */
+    margin: 20px 0;
 }
 
-.logout-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+#logout-btn:hover {
+    background-color: #e74c3c;
+    color: #ffffff;
 }
 
-.goals-section {
-    padding: 40px;
-}
+/*
+====================================
+  Форма добавления целей (Goal Form)
+====================================
+*/
 
-.section-title {
-    font-size: 1.8rem;
-    color: #2c3e50;
+#goal-form {
+    display: flex; /* Используем Flexbox для расположения input и кнопки в ряд */
+    gap: 10px; /* Расстояние между элементами */
     margin-bottom: 30px;
-    padding-bottom: 15px;
-    border-bottom: 2px solid #eaeaea;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.section-title::before {
-    content: '🎯';
-    font-size: 1.5rem;
-}
-
-.goal-form {
-    display: flex;
-    gap: 15px;
-    margin-bottom: 40px;
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 15px;
 }
 
 #goal-input {
-    flex: 1;
-    padding: 15px;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
+    flex-grow: 1; /* Заставляет поле ввода занимать всё свободное место */
+    padding: 12px 15px;
+    border: 1px solid var(--input-border-color);
+    border-radius: var(--border-radius);
+    font-size: 1em;
+    transition: border-color 0.3s ease;
 }
 
 #goal-input:focus {
+    border-color: var(--primary-color);
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
 }
 
-.goal-form button {
-    background: linear-gradient(45deg, #4CAF50, #45a049);
-    color: white;
+#goal-form button {
+    /* Стили кнопки "Добавить" */
+    background-color: var(--primary-color);
+    color: #ffffff;
     border: none;
-    padding: 15px 30px;
-    border-radius: 10px;
-    font-size: 1rem;
+    padding: 12px 20px;
+    border-radius: var(--border-radius);
+    font-size: 1em;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 120px;
+    transition: background-color 0.3s ease;
 }
 
-.goal-form button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+#goal-form button:hover {
+    background-color: #357ABD;
 }
 
-.goals-list {
-    list-style: none;
+/*
+====================================
+  Стили списка целей (Goal List)
+====================================
+*/
+
+#goal-list {
+    list-style: none; /* Убираем стандартные маркеры */
+    padding: 0;
 }
 
-.goal-item {
-    background: white;
-    border: 2px solid #eaeaea;
-    border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 15px;
+/* Стиль для каждой отдельной цели (предполагаем, что это <li>) */
+#goal-list li {
+    background-color: var(--goal-bg-color);
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Легкая тень для "карточки" цели */
     display: flex;
-    justify-content: space-between;
+    justify-content: space-between; /* Распределяем содержимое (текст и кнопка удаления) */
     align-items: center;
-    transition: all 0.3s ease;
-    animation: slideIn 0.3s ease;
+    border-left: 5px solid var(--primary-color); /* Красивая синяя полоса-акцент */
 }
 
-.goal-item:hover {
-    border-color: #667eea;
-    transform: translateX(5px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.goal-content {
-    flex: 1;
-    font-size: 1.1rem;
-    color: #2c3e50;
-    font-weight: 500;
-}
-
-.goal-actions {
-    display: flex;
-    gap: 10px;
-}
-
-.edit-btn, .delete-btn {
+/* Стили для элементов внутри <li>, если есть кнопки удаления */
+#goal-list li button {
     background: none;
     border: none;
-    padding: 8px;
-    border-radius: 8px;
+    color: #e74c3c;
+    font-weight: 700;
     cursor: pointer;
-    font-size: 1.2rem;
-    transition: all 0.3s ease;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 1.2em;
+    transition: color 0.2s ease;
+    margin-left: 10px;
 }
 
-.edit-btn {
-    color: #2196F3;
-    background: rgba(33, 150, 243, 0.1);
+#goal-list li button:hover {
+    color: #c0392b;
 }
 
-.edit-btn:hover {
-    background: rgba(33, 150, 243, 0.2);
-    transform: scale(1.1);
-}
 
-.delete-btn {
-    color: #f44336;
-    background: rgba(244, 67, 54, 0.1);
-}
+/*
+====================================
+  Адаптивность
+====================================
+*/
 
-.delete-btn:hover {
-    background: rgba(244, 67, 54, 0.2);
-    transform: scale(1.1);
-}
-
-.empty-state {
-    text-align: center;
-    padding: 50px 20px;
-    color: #7f8c8d;
-    font-size: 1.1rem;
-}
-
-.empty-state::before {
-    content: '📝';
-    font-size: 3rem;
-    display: block;
-    margin-bottom: 20px;
-    opacity: 0.5;
-}
-
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
+@media (max-width: 500px) {
+    body {
+        padding: 20px 15px;
     }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
-}
 
-/* Адаптивность */
-@media (max-width: 768px) {
-    .profile-header {
-        padding: 30px 20px;
-    }
-    
-    .goals-section {
-        padding: 30px 20px;
-    }
-    
-    .goal-form {
+    /* На мобильных устройствах, располагаем input и кнопку друг над другом */
+    #goal-form {
         flex-direction: column;
     }
-    
-    .goal-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
+
+    #goal-form button {
+        width: 100%; /* Кнопка на всю ширину */
+        margin-top: 5px;
     }
-    
-    .goal-actions {
-        align-self: flex-end;
+
+    #logout-btn {
+        max-width: 100%; /* Кнопка выхода на всю ширину */
     }
 }
