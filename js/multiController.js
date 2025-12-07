@@ -1,5 +1,4 @@
-// multicontroller.js
-import { db, auth } from "./firebase-config.js";
+import { db, auth } from "./firebase-config.js"; 
 import {
   collection,
   addDoc,
@@ -8,13 +7,78 @@ import {
   updateDoc,
   query,
   where,
-  onSnapshot
+  onSnapshot,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { qs } from "./ui.js"; 
+
+// Статусы
+const STATUSES = {
+    IN_PROGRESS: 'in_progress',
+    DONE: 'done',
+    FAILED: 'failed'
+};
+
+// ===============================================
+// ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (ВЫНЕСЕНЫ ИЗ initGoals)
+// ===============================================
+
+/**
+ * Создает выпадающий список для выбора статуса.
+ * @param {string} id ID элемента (цели или подцели).
+ * @param {string} currentStatus Текущий статус.
+ * @param {'goal' | 'subgoal'} type Тип элемента.
+ * @returns {HTMLSelectElement} Элемент Select.
+ */
+function createStatusDropdown(id, currentStatus, type) {
+    const select = document.createElement('select');
+    select.className = 'status-dropdown';
+    
+    const options = {
+        [STATUSES.IN_PROGRESS]: 'In Progress',
+        [STATUSES.DONE]: 'Done',
+        [STATUSES.FAILED]: 'Failed'
+    };
+
+    for (const [key, value] of Object.entries(options)) {
+        const option = document.createElement('option');
+        option.value = key;
+        option.textContent = value;
+        if (key === currentStatus) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    }
+
+    select.onclick = (e) => e.stopPropagation(); // Предотвращаем открытие модала при клике на select
+    
+    select.onchange = (e) => {
+        if (type === 'goal') {
+            updateGoalStatus(id, e.target.value);
+        } else if (type === 'subgoal') {
+            // dataset.parentId устанавливается в функции renderSubgoals
+            updateSubgoalStatus(e.target.dataset.parentId, id, e.target.value);
+        }
+    };
+    
+    return select;
+}
+
+// ДОБАВЛЕНО: Функция для обновления статуса основной цели
+async function updateGoalStatus(id, newStatus) {
+    await updateDoc(doc(db, "goals", id), {
+        status: newStatus
+    });
+}
+
+// ===============================================
+// ОСНОВНЫЕ ЦЕЛИ
+// ===============================================
 
 export function initGoals() {
-  const form = document.getElementById("goal-form");
-  const input = document.getElementById("goal-input");
-  const list = document.getElementById("goal-list");
+  const form = qs("goal-form");
+  const input = qs("goal-input");
+  const list = qs("goal-list");
 
   let userId = null;
 
@@ -37,7 +101,9 @@ export function initGoals() {
     await addDoc(collection(db, "goals"), {
       title,
       userId,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      status: STATUSES.IN_PROGRESS, 
+      subgoals: [] 
     });
 
     input.value = "";
@@ -54,16 +120,33 @@ export function initGoals() {
         const goal = docSnap.data();
 
         const li = document.createElement("li");
-        li.textContent = goal.title;
+        li.className = `goal-item status-${goal.status || STATUSES.IN_PROGRESS}`; 
+        li.dataset.id = id;
+        li.dataset.title = goal.title;
+
+        const titleSpan = document.createElement("span");
+        titleSpan.textContent = goal.title;
+        titleSpan.className = "goal-text";
+        
+        // ВЫЗЫВАЕМ ВЫНЕСЕННУЮ ФУНКЦИЮ
+        const statusSelect = createStatusDropdown(id, goal.status, 'goal');
 
         const editBtn = document.createElement("button");
         editBtn.textContent = "✏️";
-        editBtn.onclick = () => editGoal(id, goal.title);
+        editBtn.onclick = (e) => {
+            e.stopPropagation(); 
+            editGoal(id, goal.title);
+        };
 
         const delBtn = document.createElement("button");
         delBtn.textContent = "🗑️";
-        delBtn.onclick = () => deleteGoal(id);
+        delBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteGoal(id);
+        };
 
+        li.appendChild(titleSpan);
+        li.appendChild(statusSelect); 
         li.appendChild(editBtn);
         li.appendChild(delBtn);
 
@@ -71,7 +154,7 @@ export function initGoals() {
       });
     });
   }
-
+  
   async function editGoal(id, oldTitle) {
     const newTitle = prompt("Новое название:", oldTitle);
     if (!newTitle || !newTitle.trim()) return;
@@ -82,6 +165,124 @@ export function initGoals() {
   }
 
   async function deleteGoal(id) {
-    await deleteDoc(doc(db, "goals", id));
+    if (confirm("Вы уверены, что хотите удалить эту цель и все ее подцели?")) {
+        await deleteDoc(doc(db, "goals", id));
+    }
   }
+}
+
+// ===============================================
+// ПОДЦЕЛИ
+// ===============================================
+
+export const addSubgoal = async (goalId, subgoalText) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Пользователь не авторизован.");
+
+    const goalRef = doc(db, 'goals', goalId);
+    
+    const goalSnap = await getDoc(goalRef);
+    if (!goalSnap.exists()) {
+        throw new Error("Основная цель не найдена.");
+    }
+    
+    const goalData = goalSnap.data();
+    const newSubgoals = goalData.subgoals || [];
+
+    newSubgoals.push({
+        id: Date.now().toString(), 
+        text: subgoalText,
+        status: STATUSES.IN_PROGRESS 
+    });
+
+    await updateDoc(goalRef, { subgoals: newSubgoals });
+    await renderSubgoals(goalId); // Перерисовываем после добавления
+};
+
+
+export const renderSubgoals = async (goalId) => {
+    const subgoalList = qs('subgoal-list');
+    subgoalList.innerHTML = '<li>Loading subgoals...</li>';
+    
+    const goalRef = doc(db, 'goals', goalId);
+    const goalSnap = await getDoc(goalRef);
+    
+    if (!goalSnap.exists()) {
+        subgoalList.innerHTML = '<li>Error: Goal not found.</li>';
+        return;
+    }
+
+    const subgoals = goalSnap.data().subgoals || [];
+    subgoalList.innerHTML = ''; 
+
+    if (subgoals.length === 0) {
+        subgoalList.innerHTML = '<li>No subgoals yet. Add the first one!</li>';
+        return;
+    }
+
+    subgoals.forEach(subgoal => {
+        const li = document.createElement('li');
+        li.dataset.subgoalId = subgoal.id;
+        li.className = `status-${subgoal.status || STATUSES.IN_PROGRESS}`;
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = subgoal.text;
+        
+        // ВЫЗЫВАЕМ ВЫНЕСЕННУЮ ФУНКЦИЮ
+        const statusSelect = createStatusDropdown(subgoal.id, subgoal.status, 'subgoal');
+        statusSelect.dataset.parentId = goalId; 
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '×';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            deleteSubgoal(goalId, subgoal.id);
+        };
+
+        li.appendChild(textSpan);
+        li.appendChild(statusSelect); 
+        li.appendChild(deleteBtn);
+        subgoalList.appendChild(li);
+    });
+};
+
+
+export async function updateSubgoalStatus(goalId, subgoalId, newStatus) {
+    const goalRef = doc(db, 'goals', goalId);
+    const goalSnap = await getDoc(goalRef);
+    if (!goalSnap.exists()) return;
+
+    const goalData = goalSnap.data();
+    let subgoals = goalData.subgoals || [];
+
+    const updatedSubgoals = subgoals.map(s => {
+        if (s.id === subgoalId) {
+            return { ...s, status: newStatus };
+        }
+        return s;
+    });
+
+    await updateDoc(goalRef, { subgoals: updatedSubgoals });
+    await renderSubgoals(goalId);
+}
+
+
+async function deleteSubgoal(goalId, subgoalId) {
+    if (!confirm("Remove this sub-goal?")) return;
+
+    const goalRef = doc(db, 'goals', goalId);
+    
+    try {
+        const goalSnap = await getDoc(goalRef);
+        const goalData = goalSnap.data();
+        let subgoals = goalData.subgoals || [];
+
+        const updatedSubgoals = subgoals.filter(s => s.id !== subgoalId);
+
+        await updateDoc(goalRef, { subgoals: updatedSubgoals });
+
+        await renderSubgoals(goalId); 
+    } catch (e) {
+        console.error("Error deleting sub-goal: ", e);
+    }
 }

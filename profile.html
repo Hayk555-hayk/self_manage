@@ -2,38 +2,106 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Профиль</title>
-    <link rel="stylesheet" href="assets/profile.css">
+  <title>Profile</title> <link rel="stylesheet" href="assets/profile.css">
 </head>
 <body>
-  <h2>Профиль</h2>
-  <p id="user-email"></p>
-  <button id="logout-btn">Выйти</button>
+  <div class="header-section">
+    <h2>Profile</h2> <p id="user-email"></p>
+    <button id="logout-btn">Log Out</button> </div>
 
-  <h3>Цели</h3>
+  <div class="goals-section">
+    <h3>Goals</h3> <form id="goal-form">
+      <input type="text" id="goal-input" placeholder="New main goal"> <button>Add</button> </form>
 
-  <form id="goal-form">
-    <input type="text" id="goal-input" placeholder="Новая цель">
-    <button>Добавить</button>
-  </form>
+    <ul id="goal-list">
+      </ul>
+  </div>
 
-  <ul id="goal-list"></ul>
+  <div id="subgoal-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="close-btn" id="close-subgoal-modal">&times;</button>
+      <h4>Subgoals for: <span id="current-goal-title"></span></h4> <form id="subgoal-form">
+        <input type="text" id="subgoal-input" placeholder="New sub-goal"> <button type="submit">Add Subgoal</button> </form>
 
+      <ul id="subgoal-list">
+        </ul>
+    </div>
+  </div>
+  
   <script type="module">
     import { auth } from "./js/firebase-config.js";
     import { logout } from "./js/auth.js";
-    import { initGoals } from "./js/multiController.js";
+    // Update this import if your functions are named initGoals, addSubgoal, and renderSubgoals
+    import { initGoals, addSubgoal, renderSubgoals } from "./js/multiController.js"; 
+    
+    // Insert or ensure you have the qs function (querySelector shortcut)
+    const qs = (id) => document.getElementById(id);
+    const showMessage = (msg) => console.log(msg); // Replace with your actual notification function
 
+    // ----------------- Authentication -----------------
     auth.onAuthStateChanged(user => {
       if (user) {
-        document.getElementById("user-email").textContent =
-          "Вы вошли как: " + user.email;
+        // Вы вошли как: -> You are logged in as: 
+        qs("user-email").textContent = "You are logged in as: " + user.email;
+        initGoals(); 
+      } else {
+        // Если пользователь не вошел, перенаправляем на страницу входа -> If the user is not logged in, redirect to the login page
+        window.location.href = "login.html"; 
       }
     });
 
-    document.getElementById("logout-btn").onclick = () => logout();
+    qs("logout-btn").onclick = () => logout();
 
-    initGoals();
+    // ----------------- Modal Window Management -----------------
+    let currentGoalId = null;
+
+    // Закрытие модального окна -> Closing the modal window
+    qs("close-subgoal-modal").onclick = () => {
+        qs("subgoal-modal").style.display = 'none';
+        currentGoalId = null;
+    };
+    
+    // Обработка клика по основной цели (для открытия модального окна)
+    // Handling click on the main goal (to open the modal window)
+    // Обрабатываем клики только на элементах с классом 'goal-item'
+    // Process clicks only on elements with the class 'goal-item'
+    qs("goal-list").addEventListener('click', (e) => {
+        const goalElement = e.target.closest('.goal-item');
+        
+        // Убеждаемся, что мы не кликнули на кнопку редактирования/удаления внутри цели
+        // Ensure we didn't click on an edit/delete button inside the goal
+        if (goalElement && !e.target.closest('button')) { 
+            currentGoalId = goalElement.dataset.id;
+            // Цель может содержать несколько дочерних элементов, берем title из data
+            // The goal may contain multiple child elements, taking the title from data
+            const goalTitle = goalElement.dataset.title || 'Untitled goal'; // Цель без названия -> Untitled goal 
+
+            qs("current-goal-title").textContent = goalTitle;
+            renderSubgoals(currentGoalId); // Отображаем подцели для этой цели -> Display subgoals for this goal
+            qs("subgoal-modal").style.display = 'flex';
+        }
+    });
+
+    // ----------------- Adding Subgoal -----------------
+    qs("subgoal-form").onsubmit = async (e) => {
+        e.preventDefault();
+        const subgoalText = qs("subgoal-input").value.trim();
+        
+        if (subgoalText && currentGoalId) {
+            try {
+                // ВАЖНО: Ваша функция addSubgoal в multiController сейчас является заглушкой. 
+                // Она должна быть реализована для реальной работы с Firestore.
+                // IMPORTANT: Your addSubgoal function in multiController is currently a placeholder.
+                // It must be implemented for real Firestore functionality.
+                await addSubgoal(currentGoalId, subgoalText); 
+                qs("subgoal-input").value = '';
+                // renderSubgoals(currentGoalId); // Обновляем список подцелей в модальном окне -> Update the list of subgoals in the modal window
+            } catch (error) {
+                // Ошибка при добавлении подцели: -> Error adding sub-goal: 
+                showMessage("Error adding sub-goal: " + error.message);
+            }
+        }
+    };
   </script>
 </body>
 </html>
