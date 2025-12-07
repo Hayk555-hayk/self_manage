@@ -8,25 +8,34 @@
 </head>
 <body>
     <div class="container">
-        <h2>💰 Financial Dashboard</h2>
+        <h2>💰 Financial Dashboard V2</h2>
         <p id="user-email"></p>
         <button id="logout-btn" class="logout-btn">Log Out</button>
         <h5><a href="profile.html">Goals</a></h5>
         <h5><a href="motivation_tracker.html">Motivation Tracker</a></h5>
 
+        <section class="settings-section">
+            <h3>⚙️ Fixed Financial Settings</h3>
+            <form id="settings-form" class="input-form">
+                <input type="text" id="fixed-salary" placeholder="Monthly Salary (USD)" required>
+                <input type="text" id="fixed-debt" placeholder="Monthly Credit Payments (USD)" required>
+                <button type="submit">Update Fixed Settings</button>
+            </form>
+            <div id="current-settings" class="metrics">
+                </div>
+        </section>
+
         <section class="data-input-section">
-            <h3>Add Transaction or Income</h3>
+            <h3>Add Variable Transaction (Expense or Bonus)</h3>
             
             <form id="transaction-form" class="input-form">
                 <select id="transaction-type" required>
                     <option value="" disabled selected>Select Type</option>
-                    <option value="Income">Income (Salary, Bonus, etc.)</option>
-                    <option value="Expense">Expense (Food, bills, etc.)</option>
+                    <option value="Expense">Expense (Food, Bills, etc.)</option>
+                    <option value="Bonus">Bonus (Prizes, Side Income, Refunds)</option>
                     <option value="Savings_Deposit">Savings Deposit</option>
-                    <option value="Credit_Payment">Credit Payment</option>
-                    <option value="Debt_Added">New Debt/Loan</option>
                 </select>
-                <input type="number" id="amount-input" placeholder="Amount (AMD)" required min="0">
+                <input type="text" id="amount-input" placeholder="Amount (USD)" required min="0"> 
                 <input type="text" id="description-input" placeholder="Description (e.g., 'Groceries', 'Client Payout')">
                 <button type="submit">Save Transaction</button>
             </form>
@@ -42,7 +51,7 @@
             <h3>Visual Breakdown</h3>
 
             <div class="chart-controls">
-                <label for="time-filter">Show Data for:</label>
+                <label for="time-filter">Show Data for Variable Flow:</label>
                 <select id="time-filter">
                     <option value="day">Current Day</option>
                     <option value="week">Last 7 Days</option>
@@ -53,20 +62,26 @@
 
             <div class="charts-grid">
                 <div class="chart-card">
-                    <h4>1. Income vs Expense (Bar Chart)</h4>
-                    <canvas id="chartIncomeExpense"></canvas>
+                    <h4>1. Total Cash Flow (Fixed vs Variable)</h4>
+                    <canvas id="chartTotalFlow"></canvas>
                 </div>
 
                 <div class="chart-card">
-                    <h4>2. Net Worth & Savings (Doughnut Chart)</h4>
-                    <canvas id="chartNetWorth"></canvas>
+                    <h4>2. Variable Flow Breakdown (Bonus vs Expense)</h4>
+                    <canvas id="chartVariableBreakdown"></canvas>
                 </div>
                 
                 <div class="chart-card wide">
-                    <h4>3. Financial Flow Over Time</h4>
+                    <h4>3. Variable Flow Over Time</h4>
                     <canvas id="chartTimeFlow"></canvas>
                 </div>
             </div>
+        </section>
+
+        <section class="history-section">
+            <h3>Transaction History (Variable)</h3>
+            <ul id="transaction-history-list">
+                </ul>
         </section>
 
     </div>
@@ -74,14 +89,18 @@
     <script type="module">
         import { auth } from "./js/firebase-config.js";
         import { logout } from "./js/auth.js";
-        import { initFinanceController, addTransaction } from "./js/financeController.js";
+        import { 
+            initFinanceController, 
+            addTransaction, 
+            updateFixedSettings 
+        } from "./js/financeController.js";
         
         const qs = (id) => document.getElementById(id);
 
         auth.onAuthStateChanged(user => {
             if (user) {
                 qs("user-email").textContent = "Logged in as: " + user.email;
-                initFinanceController(); // Инициализация контроллера
+                initFinanceController(); 
             } else {
                 window.location.href = "login.html"; 
             }
@@ -89,12 +108,29 @@
 
         qs("logout-btn").onclick = () => logout();
 
-        // Обработчик формы
+        // Обработчик формы ФИКСИРОВАННЫХ НАСТРОЕК
+        qs("settings-form").onsubmit = async (e) => {
+            e.preventDefault();
+            const salary = parseFloat(qs("fixed-salary").value.replace(',', '.'));
+            const debt = parseFloat(qs("fixed-debt").value.replace(',', '.'));
+            
+            if (!isNaN(salary) && !isNaN(debt)) {
+                try {
+                    await updateFixedSettings(salary, debt);
+                } catch (error) {
+                    console.error("Error saving fixed settings:", error.message);
+                }
+            } else {
+                alert("Please enter valid numbers for Salary and Debt.");
+            }
+        };
+
+        // Обработчик формы ПЕРЕМЕННЫХ ТРАНЗАКЦИЙ
         qs("transaction-form").onsubmit = async (e) => {
             e.preventDefault();
             
             const type = qs("transaction-type").value;
-            const amount = parseFloat(qs("amount-input").value);
+            const amount = parseFloat(qs("amount-input").value); 
             const description = qs("description-input").value.trim() || type;
             
             if (type && amount > 0) {
@@ -106,13 +142,12 @@
                     console.error("Error saving data:", error.message);
                 }
             } else {
-                console.warn("Please select a data type and enter a valid amount.");
+                alert("Please select a data type and enter a valid positive amount.");
             }
         };
 
-        // Обработчик изменения фильтра времени (для графика 3)
+        // Обработчик изменения фильтра времени 
         qs("time-filter").onchange = () => {
-             // Повторная инициализация контроллера обновит все графики
              initFinanceController(); 
         };
     </script>

@@ -8,7 +8,8 @@
     --primary-color: #3498db; 
     --success-color: #2ecc71; 
     --danger-color: #e74c3c; 
-    --warning-color: #f1c40f; /* Добавлен для сбережений */
+    --warning-color: #f1c40f; 
+    --fixed-color: #9b59b6; /* Фиолетовый для фикс. значений */
     --background-color: #ecf0f1; 
     --card-bg-color: #ffffff;
     --text-color: #2c3e50; 
@@ -16,11 +17,7 @@
     --box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
+/* ... (Сброс и основные стили .container, h2, h3, .logout-btn остаются прежними) ... */
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -30,18 +27,12 @@ body {
 }
 
 .container {
-    max-width: 1200px; /* Увеличен для размещения 3-х графиков */
+    max-width: 1200px; 
     margin: 0 auto;
     background-color: #fff;
     padding: 30px;
     border-radius: var(--border-radius);
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
-}
-
-h2 {
-    color: var(--primary-color);
-    text-align: center;
-    margin-bottom: 20px;
 }
 
 h3 {
@@ -51,44 +42,28 @@ h3 {
     margin-bottom: 20px;
 }
 
-.logout-btn {
-    float: right;
-    background: var(--danger-color);
-    color: white;
-    border: none;
-    padding: 8px 15px;
+/* Секция фиксированных настроек */
+.settings-section {
+    padding: 15px;
+    border: 1px solid #ddd;
     border-radius: var(--border-radius);
-    cursor: pointer;
-    transition: background 0.3s;
+    margin-bottom: 20px;
 }
 
-.logout-btn:hover {
-    background: #c0392b;
-}
-
-#user-email {
-    font-size: 0.9em;
-    color: var(--text-color);
-    margin-bottom: 15px;
-}
-
-/* Секция ввода данных */
+/* Секция ввода данных и форм */
 .input-form {
     display: flex;
     gap: 10px;
     margin-bottom: 30px;
-    flex-wrap: wrap; /* Позволяет форме переноситься на мобильных */
+    flex-wrap: wrap; 
 }
-
-.input-form select,
-.input-form input {
+.input-form select, .input-form input {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
     flex-grow: 1;
     min-width: 150px;
 }
-
 .input-form button {
     background-color: var(--primary-color);
     color: white;
@@ -98,10 +73,6 @@ h3 {
     cursor: pointer;
     transition: background 0.3s;
     min-width: 150px;
-}
-
-.input-form button:hover {
-    background-color: #2980b9;
 }
 
 /* Метрики (Обзор) */
@@ -128,74 +99,82 @@ h3 {
     font-weight: 600;
 }
 
-.saving-value {
-    color: var(--success-color);
-}
+.saving-value { color: var(--success-color); }
+.debt-value { color: var(--danger-color); }
+.fixed-value { color: var(--fixed-color); } /* Новый класс */
+.networth-value { color: var(--primary-color); }
 
-.debt-value {
-    color: var(--danger-color);
-}
-
-.networth-value {
-    color: var(--primary-color);
-}
-
-/*
-====================================
-  Стили для графиков
-====================================
-*/
-
-.charts-section {
-    margin-top: 40px;
-}
-
-.chart-controls {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.chart-controls select {
-    padding: 8px 15px;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-}
-
+/* Стили для графиков */
+.charts-section { margin-top: 40px; }
 .charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 20px;
     margin-top: 20px;
 }
-
 .chart-card {
     background: var(--card-bg-color);
     padding: 20px;
     border-radius: var(--border-radius);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    min-height: 350px; /* Чтобы все графики были одинаковой высоты */
+    min-height: 350px; 
 }
+.chart-card.wide { grid-column: 1 / -1; } 
 
-.chart-card h4 {
-    text-align: center;
-    margin-bottom: 15px;
-    color: var(--primary-color);
+/* Стили для Истории Транзакций */
+.history-section {
+    margin-top: 40px;
+    padding: 20px;
+    background: var(--card-bg-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+}
+#transaction-history-list { list-style: none; padding: 0; }
+.transaction-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px dashed #eee;
+    font-size: 0.95em;
+}
+.transaction-info {
+    display: flex;
+    flex-grow: 1;
+    gap: 15px;
+}
+.transaction-info .type { font-weight: bold; min-width: 100px; text-align: left; }
+.transaction-info .description { flex-grow: 1; color: var(--text-color); }
+.transaction-info .amount { font-weight: bold; text-align: right; min-width: 80px; }
+.transaction-info .date { color: #999; font-size: 0.85em; min-width: 80px; }
+
+/* Цветовые акценты для типов */
+.transaction-item.bonus .amount { color: var(--success-color); } /* Bonus */
+.transaction-item.expense .amount { color: var(--danger-color); } /* Expense */
+.transaction-item.savings_deposit .amount { color: var(--warning-color); }
+
+.transaction-actions button {
+    background: none;
+    border: none;
+    cursor: pointer;
     font-size: 1.1em;
+    margin-left: 5px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+@media (max-width: 600px) {
+    .transaction-info { flex-direction: column; gap: 2px; }
+    .transaction-item { flex-wrap: wrap; }
+    .transaction-actions { margin-left: auto; }
 }
 
-.chart-card.wide {
-    grid-column: 1 / -1; /* Занимает всю ширину сетки для графика динамики */
-}
-
-/* Медиа-запросы */
-@media (max-width: 768px) {
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-    .input-form {
-        flex-direction: column;
-    }
-    .metric-card {
-        min-width: 100%;
-    }
+.logout-btn {
+    float: right;
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: background 0.3s;
 }

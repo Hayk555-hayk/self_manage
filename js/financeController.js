@@ -7,27 +7,26 @@ import {
   onSnapshot,
   orderBy,
   doc,
-  deleteDoc
+  deleteDoc,
+  updateDoc,
+  setDoc, // Для записи настроек
+  getDoc // Для получения настроек
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-const FINANCE_COLLECTION = 'financialData';
+const TRANSACTIONS_COLLECTION = 'transactions'; // Переменные: Expense, Bonus, Savings
+const SETTINGS_COLLECTION = 'settings'; // Фиксированные: Salary, Debt
 const qs = (id) => document.getElementById(id);
 
-// Хранение экземпляров Chart.js
 const charts = {
-    incomeExpense: null,
-    netWorth: null,
+    totalFlow: null,
+    variableBreakdown: null,
     timeFlow: null
 };
 
-// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ДАТ ---
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
-/**
- * Возвращает timestamp для начала выбранного периода.
- * @param {string} period 'day', 'week', 'month', 'year'
- * @returns {number} Timestamp начала периода.
- */
 function getStartTimestamp(period) {
+    // ... (логика расчета временного штампа остается прежней) ...
     const now = new Date();
     let start = new Date(now);
 
@@ -48,20 +47,72 @@ function getStartTimestamp(period) {
     return start.getTime();
 }
 
-
-// --- ФУНКЦИИ ЗАПИСИ В FIREBASE ---
+// --- УПРАВЛЕНИЕ ФИКСИРОВАННЫМИ НАСТРОЙКАМИ (Salary, Debt) ---
 
 /**
- * Добавляет новую транзакцию в Firestore.
- * @param {string} type Income, Expense, Savings_Deposit, Credit_Payment, Debt_Added.
- * @param {number} amount Сумма.
- * @param {string} description Описание.
+ * Обновляет (или создает) фиксированные настройки для пользователя.
+ */
+export const updateFixedSettings = async (salary, debt) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated.");
+
+    const settingsRef = doc(db, SETTINGS_COLLECTION, user.uid);
+    await setDoc(settingsRef, {
+        userId: user.uid,
+        monthlySalary: salary,
+        monthlyDebt: debt
+    });
+};
+
+/**
+ * Загружает фиксированные настройки и подписывается на изменения.
+ */
+function subscribeToSettings(userId) {
+    const settingsRef = doc(db, SETTINGS_COLLECTION, userId);
+
+    onSnapshot(settingsRef, (docSnap) => {
+        let settings = { monthlySalary: 0, monthlyDebt: 0 };
+        if (docSnap.exists()) {
+            settings = docSnap.data();
+        }
+        renderFixedSettings(settings);
+        // Перезагрузка транзакций, чтобы обновить метрики
+        loadTransactions(userId, settings); 
+    });
+}
+
+/**
+ * Отображает текущие фиксированные настройки.
+ */
+function renderFixedSettings(settings) {
+    const container = qs('current-settings');
+    const format = (value) => `$${(value || 0).toFixed(2)}`;
+
+    container.innerHTML = `
+        <div class="metric-card">
+            <h4>Fixed Monthly Salary</h4>
+            <p class="fixed-value">${format(settings.monthlySalary)}</p>
+        </div>
+        <div class="metric-card">
+            <h4>Fixed Monthly Debt</h4>
+            <p class="debt-value">${format(settings.monthlyDebt)}</p>
+        </div>
+    `;
+    qs('fixed-salary').value = settings.monthlySalary || '';
+    qs('fixed-debt').value = settings.monthlyDebt || '';
+}
+
+
+// --- УПРАВЛЕНИЕ ПЕРЕМЕННЫМИ ТРАНЗАКЦИЯМИ (Expense, Bonus, Savings) ---
+
+/**
+ * Добавляет новую транзакцию.
  */
 export const addTransaction = async (type, amount, description) => {
     const user = auth.currentUser;
     if (!user) throw new Error("User not authenticated.");
 
-    await addDoc(collection(db, FINANCE_COLLECTION), {
+    await addDoc(collection(db, TRANSACTIONS_COLLECTION), {
         userId: user.uid,
         type: type,
         amount: amount,
@@ -70,203 +121,176 @@ export const addTransaction = async (type, amount, description) => {
     });
 };
 
+/**
+ * Загружает переменные транзакции и передает их для рендеринга.
+ */
+function loadTransactions(userId, settings) {
+    const period = qs('time-filter').value;
+    const startTime = getStartTimestamp(period);
 
-// --- ФУНКЦИИ КОНТРОЛЛЕРА И ЗАГРУЗКИ ---
+    const q = query(
+        collection(db, TRANSACTIONS_COLLECTION),
+        where("userId", "==", userId),
+        where("timestamp", ">=", startTime),
+        orderBy("timestamp", "asc")
+    );
+
+    onSnapshot(q, (snapshot) => {
+        const variableData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Передаем и переменные данные, и фиксированные настройки для расчетов
+        renderFinancialMetrics(variableData, settings);
+        renderCharts(variableData, settings, period);
+        renderTransactionHistory(variableData);
+    });
+}
+
+// --- ИНИЦИАЛИЗАЦИЯ И КОНТРОЛЛЕР ---
 
 export const initFinanceController = () => {
     auth.onAuthStateChanged(user => {
         if (user) {
-            loadFinancialData(user.uid);
+            subscribeToSettings(user.uid); // Сначала загружаем настройки
+            addInputValidation(); // Валидация
         }
     });
 };
 
-function loadFinancialData(userId) {
-    const period = qs('time-filter').value;
-    const startTime = getStartTimestamp(period);
-
-    // Запрос для получения всех транзакций за выбранный период (и сортировка для графиков)
-    const q = query(
-        collection(db, FINANCE_COLLECTION),
-        where("userId", "==", userId),
-        where("timestamp", ">=", startTime),
-        orderBy("timestamp", "asc") // Сортировка по возрастанию для временных рядов
-    );
-
-    onSnapshot(q, (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Передаем все данные для обработки и отрисовки
-        renderFinancialMetrics(data);
-        renderChartIncomeExpense(data); // 1. Зарплата (Доход) и Траты
-        renderChartNetWorth(data);      // 2, 3, 4. Зарплата+Сбережения, Кредиты+Зарплата, Остаток
-        renderChartTimeFlow(data, period); // 5. Динамика по периодам
-    });
+function renderCharts(variableData, settings, period) {
+    renderChartTotalFlow(variableData, settings);
+    renderChartVariableBreakdown(variableData);
+    renderChartTimeFlow(variableData, period);
 }
 
 
 // --- ФУНКЦИИ ОТОБРАЖЕНИЯ МЕТРИК ---
 
-function renderFinancialMetrics(data) {
+function renderFinancialMetrics(data, settings) {
     const metricsContainer = qs('summary-metrics');
     
-    // Суммирование данных по категориям
     const totals = data.reduce((acc, item) => {
-        if (item.type === 'Income' || item.type === 'Salary') acc.income += item.amount;
+        if (item.type === 'Bonus') acc.bonus += item.amount;
         if (item.type === 'Expense') acc.expense += item.amount;
         if (item.type === 'Savings_Deposit') acc.savings += item.amount;
-        if (item.type === 'Credit_Payment' || item.type === 'Debt_Added') acc.debt += item.amount;
         return acc;
-    }, { income: 0, expense: 0, savings: 0, debt: 0 });
+    }, { bonus: 0, expense: 0, savings: 0 });
 
-    // Расчеты
-    const netIncome = totals.income - totals.expense;
-    const currentBalance = netIncome - totals.debt;
+    const fixedSalary = settings.monthlySalary || 0;
+    const fixedDebt = settings.monthlyDebt || 0;
     
-    const format = (value) => `$${value.toFixed(2)}`;
+    // МЕТРИКИ НА МЕСЯЦ (поскольку Fixed значения - месячные)
+    const totalIncome = fixedSalary + totals.bonus;
+    const totalExpense = fixedDebt + totals.expense;
+    const netIncome = totalIncome - totalExpense;
+    
+    const format = (value) => `$${(value).toFixed(2)}`;
     
     metricsContainer.innerHTML = `
         <div class="metric-card">
-            <h4>Total Income</h4>
-            <p class="saving-value">${format(totals.income)}</p>
+            <h4>Total Monthly Income (Fixed + Bonus)</h4>
+            <p class="saving-value">${format(totalIncome)}</p>
         </div>
         <div class="metric-card">
-            <h4>Total Expenses</h4>
-            <p class="debt-value">${format(totals.expense)}</p>
+            <h4>Total Monthly Expenses (Fixed + Variable)</h4>
+            <p class="debt-value">${format(totalExpense)}</p>
         </div>
         <div class="metric-card">
-            <h4>Net Income (Income - Expenses)</h4>
+            <h4>Net Flow (Income - Expenses)</h4>
             <p class="${netIncome >= 0 ? 'saving-value' : 'debt-value'}">${format(netIncome)}</p>
         </div>
         <div class="metric-card">
-            <h4>Total Savings</h4>
-            <p class="saving-value">${format(totals.savings)}</p>
-        </div>
-        <div class="metric-card">
-            <h4>Current Financial Balance</h4>
-            <p class="networth-value">${format(currentBalance)}</p>
+            <h4>Variable Savings (This Period)</h4>
+            <p class="fixed-value">${format(totals.savings)}</p>
         </div>
     `;
 }
 
-// --- ФУНКЦИИ ОТОБРАЖЕНИЯ ГРАФИКОВ CHART.JS ---
+// --- ФУНКЦИИ ГРАФИКОВ ---
 
 /**
- * 1. Зарплата/Доход и Траты (Bar Chart)
+ * 1. Общий Доход (Fixed+Variable) vs Общие Траты (Fixed+Variable) (Bar Chart)
  */
-function renderChartIncomeExpense(data) {
-    const ctx = qs('chartIncomeExpense');
-    if (!ctx) return;
+function renderChartTotalFlow(data, settings) {
+    const fixedSalary = settings.monthlySalary || 0;
+    const fixedDebt = settings.monthlyDebt || 0;
 
-    const totalIncome = data.filter(d => d.type === 'Income' || d.type === 'Salary').reduce((sum, d) => sum + d.amount, 0);
-    const totalExpense = data.filter(d => d.type === 'Expense').reduce((sum, d) => sum + d.amount, 0);
+    const totalBonus = data.filter(d => d.type === 'Bonus').reduce((sum, d) => sum + d.amount, 0);
+    const totalExpenseVariable = data.filter(d => d.type === 'Expense').reduce((sum, d) => sum + d.amount, 0);
 
-    // Уничтожение старого графика
-    if (charts.incomeExpense) charts.incomeExpense.destroy();
+    const totalIncome = fixedSalary + totalBonus;
+    const totalExpense = fixedDebt + totalExpenseVariable;
+
+    if (charts.totalFlow) charts.totalFlow.destroy();
     
-    charts.incomeExpense = new Chart(ctx, {
+    charts.totalFlow = new Chart(qs('chartTotalFlow'), {
         type: 'bar',
         data: {
-            labels: ['Total Income', 'Total Expenses'],
+            labels: ['Total Income', 'Total Expenses', 'Net'],
             datasets: [{
-                label: 'AMD',
-                data: [totalIncome, totalExpense],
-                backgroundColor: ['#3498db', '#e74c3c'], // Синий vs Красный
+                label: 'USD (Monthly/Period)',
+                data: [totalIncome, totalExpense, totalIncome - totalExpense],
+                backgroundColor: ['#2ecc71', '#e74c3c', '#3498db'], 
                 borderWidth: 1
             }]
         },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                title: { display: false }
-            }
+        options: { 
+            responsive: true, 
+            scales: { y: { beginAtZero: true } },
+            plugins: { legend: { display: false } }
         }
     });
 }
 
 /**
- * 2, 3, 4. Сводный график (Doughnut Chart)
- * Отражает соотношение: Сбережения / Долги / Остаток (Net Income - Savings - Debt)
+ * 2. Переменный Поток (Bonus vs Expenses) (Doughnut Chart)
  */
-function renderChartNetWorth(data) {
-    const ctx = qs('chartNetWorth');
-    if (!ctx) return;
-
-    const totalIncome = data.filter(d => d.type === 'Income' || d.type === 'Salary').reduce((sum, d) => sum + d.amount, 0);
+function renderChartVariableBreakdown(data) {
+    const totalBonus = data.filter(d => d.type === 'Bonus').reduce((sum, d) => sum + d.amount, 0);
     const totalExpense = data.filter(d => d.type === 'Expense').reduce((sum, d) => sum + d.amount, 0);
-    const totalSavings = data.filter(d => d.type === 'Savings_Deposit').reduce((sum, d) => sum + d.amount, 0);
-    const totalDebt = data.filter(d => d.type === 'Debt_Added').reduce((sum, d) => sum + d.amount, 0);
 
-    const netIncome = totalIncome - totalExpense;
-    const remainingBalance = netIncome - totalSavings - totalDebt;
-
-    // Считаем все как положительные значения для Pie Chart
-    const labels = ['Remaining Balance', 'Savings', 'Debt'];
-    const amounts = [
-        Math.max(0, remainingBalance), // Остаток (не может быть отрицательным на графике)
-        totalSavings,
-        totalDebt
-    ];
-
-    if (charts.netWorth) charts.netWorth.destroy();
+    if (charts.variableBreakdown) charts.variableBreakdown.destroy();
     
-    charts.netWorth = new Chart(ctx, {
+    charts.variableBreakdown = new Chart(qs('chartVariableBreakdown'), {
         type: 'doughnut',
         data: {
-            labels: labels,
+            labels: ['Variable Expenses', 'Bonuses/Side Income'],
             datasets: [{
-                data: amounts,
-                backgroundColor: [
-                    '#3498db',  // Remaining (Синий)
-                    '#f1c40f',  // Savings (Желтый)
-                    '#e74c3c'   // Debt (Красный)
-                ],
+                data: [totalExpense, totalBonus],
+                backgroundColor: ['#e74c3c', '#2ecc71'], 
                 hoverOffset: 4
             }]
         },
-        options: {
-            responsive: true,
-            aspectRatio: 1,
-            plugins: {
-                legend: { position: 'bottom' }
-            }
+        options: { 
+            responsive: true, 
+            aspectRatio: 1, 
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 }
 
 /**
- * 5. Финансы текущего дня/недели/месяца/года (Line Chart)
+ * 3. Динамика переменного потока по периодам (Line Chart)
  */
 function renderChartTimeFlow(data, period) {
-    const ctx = qs('chartTimeFlow');
-    if (!ctx) return;
-
-    // Агрегация данных по дням/неделям (для Line Chart)
     const aggregated = aggregateByPeriod(data, period);
     
     if (charts.timeFlow) charts.timeFlow.destroy();
     
-    charts.timeFlow = new Chart(ctx, {
+    charts.timeFlow = new Chart(qs('chartTimeFlow'), {
         type: 'line',
         data: {
             labels: Object.keys(aggregated),
             datasets: [
                 {
-                    label: 'Net Flow (Income - Expense)',
-                    data: Object.values(aggregated).map(item => item.income - item.expense),
-                    borderColor: '#2ecc71', // Зеленый
+                    label: 'Net Variable Flow (Bonus - Expense)',
+                    data: Object.values(aggregated).map(item => item.bonus - item.expense),
+                    borderColor: '#3498db', // Синий
                     tension: 0.2,
                     fill: false,
                     yAxisID: 'y'
                 },
                 {
-                    label: 'Savings Change',
+                    label: 'Savings Deposits',
                     data: Object.values(aggregated).map(item => item.savings),
                     borderColor: '#f1c40f', // Желтый
                     tension: 0.2,
@@ -277,56 +301,34 @@ function renderChartTimeFlow(data, period) {
         },
         options: {
             responsive: true,
-            plugins: {
-                legend: { position: 'top' },
-                title: { text: `Financial Flow by ${period.toUpperCase()}` }
-            },
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'Amount (AMD)'
-                    }
-                }
-            }
+            plugins: { title: { text: `Variable Flow by ${period.toUpperCase()}` } },
+            scales: { y: { type: 'linear', display: true, position: 'left' } }
         }
     });
 }
 
 /**
- * Группирует транзакции по периоду (день, неделя, месяц).
+ * Группирует переменные транзакции по периоду.
  */
 function aggregateByPeriod(data, period) {
     const aggregates = {};
 
     data.forEach(item => {
         const date = new Date(item.timestamp);
-        let key; // Ключ для группировки (например, "2025-12-07" или "Week 49")
+        let key; 
         
         switch (period) {
-            case 'day':
-                key = date.toISOString().substring(0, 10);
-                break;
-            case 'week':
-                // Простое определение недели (может быть усложнено, но для Chart.js достаточно)
-                key = `Week ${Math.ceil(date.getDate() / 7)}`;
-                break;
-            case 'month':
-                key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-                break;
-            case 'year':
-                key = `${date.getFullYear()}`;
-                break;
+            case 'day': key = date.toISOString().substring(0, 10); break;
+            case 'week': key = `Week ${Math.ceil(date.getDate() / 7)}`; break;
+            case 'month': key = `${date.getFullYear()}-${date.getMonth() + 1}`; break;
+            case 'year': key = `${date.getFullYear()}`; break;
         }
 
         if (!aggregates[key]) {
-            aggregates[key] = { income: 0, expense: 0, savings: 0 };
+            aggregates[key] = { expense: 0, bonus: 0, savings: 0 };
         }
 
-        if (item.type === 'Income' || item.type === 'Salary') aggregates[key].income += item.amount;
+        if (item.type === 'Bonus') aggregates[key].bonus += item.amount;
         if (item.type === 'Expense') aggregates[key].expense += item.amount;
         if (item.type === 'Savings_Deposit') aggregates[key].savings += item.amount;
     });
@@ -334,11 +336,99 @@ function aggregateByPeriod(data, period) {
     return aggregates;
 }
 
-// --- ФУНКЦИИ УДАЛЕНИЯ ---
 
-window.deleteFinanceItem = async (id) => {
-    // В текущей версии нет списка для удаления, но функция остается для будущих обновлений
+// --- ФУНКЦИИ ИСТОРИИ И УПРАВЛЕНИЯ (CRUD) ---
+
+function renderTransactionHistory(data) {
+    const historyList = qs('transaction-history-list');
+    if (!historyList) return; 
+
+    historyList.innerHTML = ''; 
+
+    const sortedData = [...data].sort((a, b) => b.timestamp - a.timestamp);
+
+    sortedData.forEach(item => {
+        const li = document.createElement('li');
+        li.className = `transaction-item ${item.type.toLowerCase()}`;
+        
+        const date = new Date(item.timestamp).toLocaleDateString();
+        const formattedAmount = `$${item.amount.toFixed(2)}`;
+
+        const editFunc = `editTransaction('${item.id}', '${item.type}', ${item.amount}, \`${item.description.replace(/'/g, "\\'")}\`)`;
+
+        li.innerHTML = `
+            <div class="transaction-info">
+                <span class="type">${item.type}</span>
+                <span class="description">${item.description}</span>
+                <span class="amount">${formattedAmount}</span>
+                <span class="date">${date}</span>
+            </div>
+            <div class="transaction-actions">
+                <button onclick="${editFunc}" title="Edit">✏️</button>
+                <button onclick="deleteTransaction('${item.id}')" title="Delete">🗑️</button>
+            </div>
+        `;
+        historyList.appendChild(li);
+    });
+}
+
+window.deleteTransaction = async (id) => {
     if (confirm("Are you sure you want to delete this financial record?")) {
-        await deleteDoc(doc(db, FINANCE_COLLECTION, id));
+        // Удаляем из коллекции TRANSACTIONS
+        await deleteDoc(doc(db, TRANSACTIONS_COLLECTION, id));
     }
+}
+
+window.editTransaction = (id, currentType, currentAmount, currentDescription) => {
+    const newAmountStr = prompt(`Enter new amount for ${currentDescription}:`, currentAmount);
+    
+    if (newAmountStr === null) return; 
+    
+    const newAmount = parseFloat(newAmountStr.replace(',', '.'));
+
+    if (isNaN(newAmount) || newAmount < 0) {
+        alert("Invalid amount entered. Please enter a positive number.");
+        return;
+    }
+
+    const newDescription = prompt(`Enter new description for ${currentType}:`, currentDescription) || currentDescription;
+    
+    updateTransaction(id, newAmount, newDescription);
+}
+
+async function updateTransaction(id, amount, description) {
+    // Обновляем в коллекции TRANSACTIONS
+    const transactionRef = doc(db, TRANSACTIONS_COLLECTION, id);
+    await updateDoc(transactionRef, {
+        amount: amount,
+        description: description
+    });
+}
+
+
+// --- ФУНКЦИЯ ВАЛИДАЦИИ ВВОДА ---
+
+function addInputValidation() {
+    // Применяем валидацию к обоим полям ввода сумм
+    ['fixed-salary', 'fixed-debt', 'amount-input'].forEach(id => {
+        const input = qs(id);
+        if (input) {
+            input.addEventListener('keypress', (e) => {
+                if (!/[0-9.,]/.test(e.key)) {
+                    e.preventDefault();
+                }
+            });
+            input.addEventListener('change', () => {
+                let value = input.value.replace(',', '.');
+                value = value.replace(/[^\d.]/g, ''); 
+                
+                const parts = value.split('.');
+                if (parts.length > 2) {
+                    value = parts[0] + '.' + parts.slice(1).join('');
+                }
+                
+                input.value = value;
+            });
+        }
+    });
 }
