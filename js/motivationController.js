@@ -6,181 +6,327 @@ import {
   where,
   onSnapshot,
   orderBy,
-  doc
+  doc,
+  deleteDoc,
+  getDocs, // <-- ИСПРАВЛЕНО
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const GOALS_COLLECTION = 'goals';
 const LOGS_COLLECTION = 'motivationLogs';
 const qs = (id) => document.getElementById(id);
 
-let currentScoreChart = null;
+let chartMotivation = null;
+let allGoals = []; 
+let currentUserId = null; 
+
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ДАТ ---
+
+function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getCurrentMonthRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    end.setHours(0, 0, 0, 0);
+
+    return { startTime: start.getTime(), endTime: end.getTime() };
+}
+
+function dateToTimestamp(dateString) {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    date.setHours(0, 0, 0, 0); 
+    return date.getTime();
+}
+
+function dateToTimestampEnd(dateString) {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    date.setHours(23, 59, 59, 999); 
+    return date.getTime();
+}
+
 
 /**
- * Инициализирует контроллер: загружает цели и подписывается на логи.
+ * Генерирует уникальный цвет для каждой линии графика
  */
-export const initMotivationController = () => {
-    auth.onAuthStateChanged(user => {
-        if (user) {
-            loadGoalsToDropdown(user.uid);
-            subscribeToMotivationLogs(user.uid);
-        }
+function getRandomColor() {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+        color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+}
+
+// --- УПРАВЛЕНИЕ ЦЕЛЯМИ (GOALS) ---
+
+export const addGoal = async (title) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated.");
+
+    await addDoc(collection(db, GOALS_COLLECTION), {
+        userId: user.uid,
+        title: title,
+        createdAt: Date.now()
     });
 };
 
-/**
- * Загружает главные цели в дропдаун.
- */
-function loadGoalsToDropdown(userId) {
-    const goalSelect = qs('goal-select');
-    // Получаем только активные цели (предполагаем, что status !== 'done' и 'failed')
+export const deleteGoal = async (id) => {
+    if (confirm("Are you sure you want to delete this goal? All related logs will remain but won't be easily readable.")) {
+        await deleteDoc(doc(db, GOALS_COLLECTION, id));
+    }
+};
+window.deleteGoal = deleteGoal;
+
+function subscribeToGoals(userId) {
     const q = query(
         collection(db, GOALS_COLLECTION),
         where("userId", "==", userId),
-        where("status", "in", ['in_progress', 'done']) // Берем все, что не удалено
+        orderBy("createdAt", "asc")
     );
 
     onSnapshot(q, (snapshot) => {
-        goalSelect.innerHTML = '<option value="" disabled selected>Select Main Goal</option>';
-        snapshot.forEach(doc => {
-            const goal = doc.data();
-            const option = document.createElement('option');
-            // Вставляем ID в value для записи в лог, а Title для отображения
-            option.value = doc.id; 
-            option.textContent = `${goal.title}`; 
-            goalSelect.appendChild(option);
-        });
-    });
-}
-
-/**
- * Подписывается на логи мотивации и вызывает функции отрисовки.
- */
-function subscribeToMotivationLogs(userId) {
-    const q = query(
-        collection(db, LOGS_COLLECTION),
-        where("userId", "==", userId),
-        orderBy("timestamp", "desc") // Сортировка для журнала активности
-    );
-
-    onSnapshot(q, (snapshot) => {
-        const logs = snapshot.docs.map(doc => doc.data());
+        allGoals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderGoals(allGoals);
+        populateGoalSelect(allGoals);
         
-        // Переворачиваем для расчета кумулятивного счета (от старого к новому)
-        const cumulativeLogs = [...logs].reverse(); 
-
-        renderMotivationScore(cumulativeLogs);
-        renderScoreChart(cumulativeLogs);
-        renderActivityLog(logs);
+        const startDate = qs('start-date').value;
+        const endDate = qs('end-date').value;
+        if(startDate && endDate) {
+             loadLogsForUser(startDate, endDate); 
+        }
     });
 }
 
-/**
- * Сохраняет новую запись о выполнении задачи.
- */
-export const logScore = async (goalId, goalTitle, score, description) => {
+function renderGoals(goals) {
+    const list = qs('goals-list');
+    list.innerHTML = '';
+    goals.forEach(goal => {
+        const li = document.createElement('li');
+        li.className = 'goal-item';
+        li.innerHTML = `
+            <span class="goal-title">${goal.title}</span>
+            <button onclick="deleteGoal('${goal.id}')" class="delete-goal-btn">🗑️</button>
+        `;
+        list.appendChild(li);
+    });
+}
+
+function populateGoalSelect(goals) {
+    const select = qs('goal-select');
+    const firstOption = select.options[0];
+    
+    select.innerHTML = '';
+    select.appendChild(firstOption); 
+    
+    goals.forEach(goal => {
+        const option = document.createElement('option');
+        option.value = goal.id;
+        option.textContent = goal.title;
+        select.appendChild(option);
+    });
+}
+
+// --- УПРАВЛЕНИЕ ЛОГАМИ МОТИВАЦИИ (LOGS) ---
+
+export const addMotivationLog = async (goalId, score, notes) => {
     const user = auth.currentUser;
     if (!user) throw new Error("User not authenticated.");
 
     await addDoc(collection(db, LOGS_COLLECTION), {
         userId: user.uid,
         goalId: goalId,
-        goalTitle: goalTitle,
         score: score,
-        description: description,
+        notes: notes,
         timestamp: Date.now()
     });
 };
 
-
-// --- ФУНКЦИИ ОТОБРАЖЕНИЯ ---
+export const deleteLog = async (id) => {
+    if (confirm("Are you sure you want to delete this log entry?")) {
+        await deleteDoc(doc(db, LOGS_COLLECTION, id));
+        
+        const startDate = qs('start-date').value;
+        const endDate = qs('end-date').value;
+        if(startDate && endDate) {
+             loadLogsForUser(startDate, endDate); 
+        }
+    }
+};
 
 /**
- * Рендерит текущий общий счет.
+ * Загружает логи мотивации с фильтрацией по диапазону дат.
  */
-function renderMotivationScore(cumulativeLogs) {
-    const scoreCard = qs('current-score');
-    const totalScore = cumulativeLogs.reduce((sum, log) => sum + log.score, 0);
-
-    scoreCard.textContent = totalScore;
-    scoreCard.className = 'score-card'; // Сброс классов
+export const loadLogsForUser = (startDateStr, endDateStr) => {
+    if (!currentUserId) return;
     
-    if (totalScore > 0) {
-        scoreCard.classList.add('positive');
-    } else if (totalScore < 0) {
-        scoreCard.classList.add('negative');
-    } else {
-        scoreCard.classList.add('neutral');
-    }
+    const startTime = dateToTimestamp(startDateStr);
+    const endTime = dateToTimestampEnd(endDateStr);
+
+    const q = query(
+        collection(db, LOGS_COLLECTION),
+        where("userId", "==", currentUserId),
+        where("timestamp", ">=", startTime),
+        where("timestamp", "<=", endTime),
+        orderBy("timestamp", "asc")
+    );
+
+    getDocs(q).then((snapshot) => {
+        const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        renderMotivationChart(logs);
+        renderLogHistory(logs);
+    }).catch(error => {
+        console.error("Error loading motivation logs:", error);
+    });
 }
 
-/**
- * Рендерит график динамики счета.
- */
-function renderScoreChart(cumulativeLogs) {
-    const ctx = qs('scoreChart');
-    if (!ctx) return;
 
-    let cumulativeSum = 0;
-    const labels = [];
-    const dataPoints = [];
+// --- ФУНКЦИЯ ГРАФИКА ---
 
-    // Расчет кумулятивного счета
-    cumulativeLogs.forEach(log => {
-        cumulativeSum += log.score;
-        labels.push(new Date(log.timestamp).toLocaleDateString());
-        dataPoints.push(cumulativeSum);
+function renderMotivationChart(logs) {
+    if (!allGoals || allGoals.length === 0) {
+        if (chartMotivation) chartMotivation.destroy();
+        return; 
+    }
+
+    const { dates, scoresByGoal } = aggregateLogsByGoalAndDate(logs);
+    
+    const datasets = allGoals.map((goal) => {
+        const goalScores = scoresByGoal[goal.id] || {};
+        const color = getRandomColor();
+        
+        const data = dates.map(date => goalScores[date] || 0);
+        
+        return {
+            label: goal.title,
+            data: data,
+            borderColor: color,
+            backgroundColor: color + '40',
+            tension: 0.3,
+            fill: false,
+            pointRadius: 3
+        };
     });
 
-    if (currentScoreChart) currentScoreChart.destroy();
-    
-    currentScoreChart = new Chart(ctx, {
+    if (chartMotivation) chartMotivation.destroy();
+
+    chartMotivation = new Chart(qs('chartMotivation'), {
         type: 'line',
         data: {
-            labels: labels,
-            datasets: [{
-                label: 'Cumulative Motivation Score',
-                data: dataPoints,
-                borderColor: '#9b59b6', // Фиолетовый
-                backgroundColor: 'rgba(155, 89, 182, 0.2)',
-                tension: 0.3,
-                fill: true 
-            }]
+            labels: dates,
+            datasets: datasets
         },
         options: {
             responsive: true,
+            maintainAspectRatio: false,
             scales: {
                 y: {
-                    beginAtZero: true
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Daily Score Sum'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
                 }
             },
             plugins: {
-                legend: { display: false }
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: true,
+                    text: 'Progress Per Goal (Filtered Period)'
+                }
             }
         }
     });
 }
 
-/**
- * Рендерит журнал активности.
- */
-function renderActivityLog(logs) {
-    const logList = qs('activity-log');
-    logList.innerHTML = '';
+// --- ФУНКЦИЯ АГРЕГАЦИИ ---
 
+function aggregateLogsByGoalAndDate(logs) {
+    const scoresByGoal = {};
+    const uniqueDates = new Set();
+    
     logs.forEach(log => {
-        const li = document.createElement('li');
-        const date = new Date(log.timestamp).toLocaleString();
-        
-        let scoreClass = 'zero';
-        if (log.score > 0) scoreClass = 'positive';
-        if (log.score < 0) scoreClass = 'negative';
+        const dateKey = new Date(log.timestamp).toISOString().substring(0, 10);
+        uniqueDates.add(dateKey);
 
+        const goalId = log.goalId;
+        const score = log.score;
+
+        if (!scoresByGoal[goalId]) {
+            scoresByGoal[goalId] = {};
+        }
+
+        scoresByGoal[goalId][dateKey] = (scoresByGoal[goalId][dateKey] || 0) + score;
+    });
+
+    const sortedDates = Array.from(uniqueDates).sort();
+
+    return { dates: sortedDates, scoresByGoal };
+}
+
+
+// --- ИСТОРИЯ ЛОГОВ ---
+
+function renderLogHistory(logs) {
+    const list = qs('log-history-list');
+    list.innerHTML = '';
+    
+    const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
+
+    sortedLogs.forEach(log => {
+        const goal = allGoals.find(g => g.id === log.goalId);
+        const goalTitle = goal ? goal.title : 'Goal Not Found (Deleted)';
+        
+        const date = new Date(log.timestamp).toLocaleDateString() + ' ' + new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const li = document.createElement('li');
+        li.className = 'log-item';
         li.innerHTML = `
-            <span class="log-score ${scoreClass}">${log.score > 0 ? '+' : ''}${log.score}</span>
-            <span class="log-goal-title">[${log.goalTitle}]</span>
-            <span class="log-description">${log.description || '(No notes)'}</span>
-            <span style="float: right; color: #aaa;">${date}</span>
+            <div class="log-info">
+                <span class="goal-title">${goalTitle}</span>
+                <span class="score">${log.score > 0 ? '+' : ''}${log.score}</span>
+                <span class="notes">${log.notes || 'No notes'}</span>
+                <span class="date">${date}</span>
+            </div>
+            <button onclick="deleteLog('${log.id}')" class="delete-log-btn">🗑️</button>
         `;
-        logList.appendChild(li);
+        list.appendChild(li);
     });
 }
+
+
+// --- ИНИЦИАЛИЗАЦИЯ КОНТРОЛЛЕРА ---
+
+export const initMotivationController = (userId) => {
+    currentUserId = userId;
+    
+    // 1. Установка начального диапазона дат (Текущий месяц)
+    const { startTime, endTime } = getCurrentMonthRange();
+    const startDate = new Date(startTime);
+    const endDate = new Date(endTime - 1); 
+
+    qs('start-date').value = formatDate(startDate);
+    qs('end-date').value = formatDate(endDate); 
+
+    // 2. Начинаем с подписки на цели (Goals)
+    subscribeToGoals(userId); 
+    
+    // 3. Загружаем логи, используя начальный диапазон дат
+    loadLogsForUser(qs('start-date').value, qs('end-date').value);
+};

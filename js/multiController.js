@@ -35,8 +35,8 @@ function createStatusDropdown(id, currentStatus, type) {
     select.className = 'status-dropdown';
     
     const options = {
-        [STATUSES.IN_PROGRESS]: 'In Progress',
-        [STATUSES.DONE]: 'Done',
+        [STATUSES.IN_PROGRESS]: 'Not Active',
+        [STATUSES.DONE]: 'Active',
         [STATUSES.FAILED]: 'Failed'
     };
 

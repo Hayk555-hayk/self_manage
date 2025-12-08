@@ -2,56 +2,69 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Progress & Motivation Tracker</title>
+    <title>Motivation Tracker</title>
     <link rel="stylesheet" href="assets/motivation.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h2>🔥 Progress & Motivation Tracker</h2>
+        <h2>🚀 Motivation Progress Tracker</h2>
         <p id="user-email"></p>
         <button id="logout-btn" class="logout-btn">Log Out</button>
         <h5><a href="profile.html">Goals</a></h5>
         <h5><a href="finance_manager.html">Finance Manager</a></h5>
 
+        <section class="goals-management-section">
+            <h3>🎯 Manage Goals</h3>
+            <form id="goal-form" class="input-form">
+                <input type="text" id="goal-title" placeholder="New Goal Title (e.g., 'Learn Coding', 'Fitness')" required>
+                <button type="submit">Add Goal</button>
+            </form>
+            <ul id="goals-list">
+                </ul>
+        </section>
 
-        <section class="log-input-section">
-            <h3>Log Task Completion</h3>
-            
-            <form id="progress-form" class="input-form">
+        <section class="rating-section">
+            <h3>✅ Daily Motivation Rating</h3>
+            <form id="rating-form" class="input-form">
                 <select id="goal-select" required>
-                    <option value="" disabled selected>Select Main Goal (Loading...)</option>
+                    <option value="" disabled selected>Select Goal Achieved</option>
                     </select>
-
                 <select id="score-select" required>
-                    <option value="" disabled selected>Select Result</option>
-                    <option value="10">🏆 Excellent Completion (+10)</option>
-                    <option value="5">✅ Routine Done (+5)</option>
-                    <option value="0">⚪ Neutral / Not Applicable (0)</option>
-                    <option value="-5">🟡 Poor Effort (-5)</option>
-                    <option value="-40">❌ Failed / Not Done (-40)</option>
+                    <option value="" disabled selected>Select Score</option>
+                    <option value="10">10 (Excellent Progress)</option>
+                    <option value="5">5 (Minor Progress)</option>
+                    <option value="0">0 (No Progress)</option>
+                    <option value="-5">-5 (Fail)</option>
+                    <option value="-10">-10 (Big Fail)</option>
                 </select>
-                
-                <input type="text" id="description-input" placeholder="Optional notes (e.g., 'Finished Chapter 5')" maxlength="100">
-                <button type="submit">Log Score</button>
+                <input type="text" id="log-notes" placeholder="Notes (Optional)">
+                <button type="submit">Log Progress</button>
             </form>
         </section>
 
-        <section class="summary-section">
-            <h3>Current Motivation Score</h3>
-            <div id="current-score" class="score-card">
-                Loading...
+        <section class="charts-section">
+            <h3>📈 Progress Over Time (Per Goal)</h3>
+            
+            <div class="date-range-filter">
+                <h4>Filter Log History:</h4>
+                <div class="input-form">
+                    <label for="start-date">Start Date:</label>
+                    <input type="date" id="start-date" required>
+                    
+                    <label for="end-date">End Date:</label>
+                    <input type="date" id="end-date" required>
+                    
+                    <button id="apply-filter-btn" type="button">Apply Filter</button>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <canvas id="chartMotivation"></canvas>
             </div>
             
-            <h3>Score Dynamics Over Time</h3>
-            <div class="chart-container">
-                <canvas id="scoreChart"></canvas>
-            </div>
-        </section>
-        
-        <section class="log-history-section">
-            <h3>Activity Log</h3>
-            <ul id="activity-log">
+            <h3>📜 Motivation Log History</h3>
+            <ul id="log-history-list">
                 </ul>
         </section>
 
@@ -60,44 +73,60 @@
     <script type="module">
         import { auth } from "./js/firebase-config.js";
         import { logout } from "./js/auth.js";
-        import { initMotivationController, logScore } from "./js/motivationController.js";
+        import { initMotivationController, addGoal, addMotivationLog, deleteLog, loadLogsForUser } from "./js/motivationController.js";
         
         const qs = (id) => document.getElementById(id);
+
+        // Функция для загрузки логов с учетом фильтра
+        const loadFilteredLogs = () => {
+            const startDate = qs('start-date').value;
+            const endDate = qs('end-date').value;
+            loadLogsForUser(startDate, endDate);
+        };
 
         auth.onAuthStateChanged(user => {
             if (user) {
                 qs("user-email").textContent = "Logged in as: " + user.email;
-                initMotivationController(); // Инициализация контроллера
+                // initMotivationController теперь инициализирует даты и запускает первую загрузку
+                initMotivationController(user.uid); 
             } else {
                 window.location.href = "login.html"; 
             }
         });
 
         qs("logout-btn").onclick = () => logout();
+        
+        // Обработчик кнопки фильтра
+        qs("apply-filter-btn").onclick = () => loadFilteredLogs();
 
-        // Обработчик формы
-        qs("progress-form").onsubmit = async (e) => {
+        qs("goal-form").onsubmit = async (e) => {
             e.preventDefault();
-            
-            const goalSelect = qs("goal-select");
-            const goalId = goalSelect.value;
-            const goalTitle = goalSelect.options[goalSelect.selectedIndex].text.replace(/\s*\(.*\)/, ''); // Очищаем от ID в скобках
-            const score = parseInt(qs("score-select").value);
-            const description = qs("description-input").value.trim();
-            
-            if (goalId && score !== null) {
-                try {
-                    await logScore(goalId, goalTitle, score, description);
-                    // Сброс полей после успешной отправки (кроме цели)
-                    qs("score-select").value = '';
-                    qs("description-input").value = '';
-                } catch (error) {
-                    console.error("Error logging score:", error.message);
-                }
-            } else {
-                console.warn("Please select a Goal and a Score.");
+            const title = qs("goal-title").value.trim();
+            if (title) {
+                await addGoal(title);
+                qs("goal-title").value = '';
             }
         };
+
+        qs("rating-form").onsubmit = async (e) => {
+            e.preventDefault();
+            const goalId = qs("goal-select").value;
+            const score = parseInt(qs("score-select").value);
+            const notes = qs("log-notes").value.trim();
+            
+            if (goalId && !isNaN(score)) {
+                await addMotivationLog(goalId, score, notes);
+                qs("log-notes").value = '';
+                qs("score-select").value = '';
+                // Перезагрузка логов для немедленного обновления графика и истории (если не используется onSnapshot)
+                loadFilteredLogs(); 
+            } else {
+                alert("Please select a goal and a score.");
+            }
+        };
+
+        // Экспортируем функцию deleteLog в глобальный scope для кнопки
+        window.deleteLog = deleteLog; 
     </script>
 </body>
 </html>

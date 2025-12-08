@@ -2,28 +2,51 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Financial Dashboard</title>
+    <title>Financial Dashboard V5 - Debt Tracker</title>
     <link rel="stylesheet" href="assets/finance.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h2>💰 Financial Dashboard V2</h2>
+        <h2>💰 Financial Dashboard V5</h2>
         <p id="user-email"></p>
         <button id="logout-btn" class="logout-btn">Log Out</button>
         <h5><a href="profile.html">Goals</a></h5>
         <h5><a href="motivation_tracker.html">Motivation Tracker</a></h5>
 
         <section class="settings-section">
-            <h3>⚙️ Fixed Financial Settings</h3>
+            <h3>⚙️ Fixed Financial Settings (Monthly)</h3>
             <form id="settings-form" class="input-form">
-                <input type="text" id="fixed-salary" placeholder="Monthly Salary (USD)" required>
-                <input type="text" id="fixed-debt" placeholder="Monthly Credit Payments (USD)" required>
+                <input type="text" id="fixed-salary" placeholder="Monthly Salary (AMD)" required>
+                <input type="text" id="fixed-debt" placeholder="Monthly Credit Payments (AMD)" required>
+                <input type="text" id="fixed-savings" placeholder="Fixed Monthly Savings (AMD)" required> 
                 <button type="submit">Update Fixed Settings</button>
             </form>
             <div id="current-settings" class="metrics">
                 </div>
         </section>
+        
+        <hr>
+
+        <section class="debt-tracker-section">
+            <h3>💳 Total Debt Repayment Tracker</h3>
+            
+            <div id="total-debt-status" class="metrics">
+                </div>
+            
+            <form id="total-debt-init-form" class="input-form">
+                <input type="text" id="initial-debt-amount" placeholder="Set Total Initial Debt (AMD)" required>
+                <button type="submit" class="init-btn">Set Total Debt</button>
+            </form>
+            
+            <h4>Log Debt Repayment:</h4>
+            <form id="debt-repayment-form" class="input-form">
+                <input type="text" id="repayment-amount" placeholder="Repayment Amount (AMD)" required min="0">
+                <button type="submit" class="repay-btn">Log Repayment</button>
+            </form>
+        </section>
+        
+        <hr>
 
         <section class="data-input-section">
             <h3>Add Variable Transaction (Expense or Bonus)</h3>
@@ -33,13 +56,14 @@
                     <option value="" disabled selected>Select Type</option>
                     <option value="Expense">Expense (Food, Bills, etc.)</option>
                     <option value="Bonus">Bonus (Prizes, Side Income, Refunds)</option>
-                    <option value="Savings_Deposit">Savings Deposit</option>
                 </select>
-                <input type="text" id="amount-input" placeholder="Amount (USD)" required min="0"> 
+                <input type="text" id="amount-input" placeholder="Amount (AMD)" required min="0"> 
                 <input type="text" id="description-input" placeholder="Description (e.g., 'Groceries', 'Client Payout')">
                 <button type="submit">Save Transaction</button>
             </form>
         </section>
+        
+        <hr>
 
         <section class="summary-section">
             <h3>Current Financial Metrics</h3>
@@ -48,35 +72,50 @@
         </section>
 
         <section class="charts-section">
-            <h3>Visual Breakdown</h3>
+            <h3>Visual Breakdown (Doughnut Charts)</h3>
 
             <div class="chart-controls">
-                <label for="time-filter">Show Data for Variable Flow:</label>
-                <select id="time-filter">
-                    <option value="day">Current Day</option>
-                    <option value="week">Last 7 Days</option>
-                    <option value="month" selected>Last 30 Days</option>
-                    <option value="year">Last Year</option>
-                </select>
+                <h4>Custom Date Range Filter (Affects Variable Data Only):</h4>
+                <div class="input-form">
+                    <label for="start-date">Start Date:</label>
+                    <input type="date" id="start-date">
+                    
+                    <label for="end-date">End Date:</label>
+                    <input type="date" id="end-date">
+                    
+                    <button id="apply-filter-btn" type="button">Apply Filter</button>
+                </div>
             </div>
 
             <div class="charts-grid">
                 <div class="chart-card">
-                    <h4>1. Total Cash Flow (Fixed vs Variable)</h4>
+                    <h4>1. Fixed Income vs Fixed Obligations</h4>
+                    <canvas id="chartFixedObligations"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h4>2. Fixed Flow Breakdown (S/D/S)</h4>
+                    <canvas id="chartFixedBreakdown"></canvas>
+                </div>
+                
+                <div class="chart-card">
+                    <h4>3. Total Cash Flow (Income vs Obligations)</h4>
                     <canvas id="chartTotalFlow"></canvas>
                 </div>
 
                 <div class="chart-card">
-                    <h4>2. Variable Flow Breakdown (Bonus vs Expense)</h4>
+                    <h4>4. Variable Flow Breakdown (Bonus vs Expense)</h4>
                     <canvas id="chartVariableBreakdown"></canvas>
                 </div>
-                
+
                 <div class="chart-card wide">
-                    <h4>3. Variable Flow Over Time</h4>
-                    <canvas id="chartTimeFlow"></canvas>
+                    <h4>5. Total Debt Repayment Progress</h4>
+                    <canvas id="chartDebtTracker"></canvas>
                 </div>
             </div>
         </section>
+
+        <hr>
 
         <section class="history-section">
             <h3>Transaction History (Variable)</h3>
@@ -92,10 +131,21 @@
         import { 
             initFinanceController, 
             addTransaction, 
-            updateFixedSettings 
+            updateFixedSettings,
+            loadTransactionsForUser,
+            setInitialTotalDebt,
+            addDebtRepaymentLog,
+            deleteTransaction,
+            updateTransaction 
         } from "./js/financeController.js";
         
         const qs = (id) => document.getElementById(id);
+
+        const loadFilteredData = () => {
+            const startDate = qs('start-date').value;
+            const endDate = qs('end-date').value;
+            loadTransactionsForUser(startDate, endDate);
+        };
 
         auth.onAuthStateChanged(user => {
             if (user) {
@@ -107,32 +157,32 @@
         });
 
         qs("logout-btn").onclick = () => logout();
+        qs("apply-filter-btn").onclick = () => loadFilteredData();
 
-        // Обработчик формы ФИКСИРОВАННЫХ НАСТРОЕК
+        // 1. Обработчик ФИКСИРОВАННЫХ НАСТРОЕК
         qs("settings-form").onsubmit = async (e) => {
             e.preventDefault();
             const salary = parseFloat(qs("fixed-salary").value.replace(',', '.'));
             const debt = parseFloat(qs("fixed-debt").value.replace(',', '.'));
+            const savings = parseFloat(qs("fixed-savings").value.replace(',', '.'));
             
-            if (!isNaN(salary) && !isNaN(debt)) {
+            if (!isNaN(salary) && !isNaN(debt) && !isNaN(savings)) {
                 try {
-                    await updateFixedSettings(salary, debt);
+                    await updateFixedSettings(salary, debt, savings); 
                 } catch (error) {
                     console.error("Error saving fixed settings:", error.message);
                 }
             } else {
-                alert("Please enter valid numbers for Salary and Debt.");
+                alert("Please enter valid numbers for all fixed settings.");
             }
         };
 
-        // Обработчик формы ПЕРЕМЕННЫХ ТРАНЗАКЦИЙ
+        // 2. Обработчик ПЕРЕМЕННЫХ ТРАНЗАКЦИЙ
         qs("transaction-form").onsubmit = async (e) => {
             e.preventDefault();
-            
             const type = qs("transaction-type").value;
             const amount = parseFloat(qs("amount-input").value); 
             const description = qs("description-input").value.trim() || type;
-            
             if (type && amount > 0) {
                 try {
                     await addTransaction(type, amount, description);
@@ -145,11 +195,46 @@
                 alert("Please select a data type and enter a valid positive amount.");
             }
         };
-
-        // Обработчик изменения фильтра времени 
-        qs("time-filter").onchange = () => {
-             initFinanceController(); 
+        
+        // 3. Обработчик: Установка Исходного Долга
+        qs("total-debt-init-form").onsubmit = async (e) => {
+            e.preventDefault();
+            const initialAmount = parseFloat(qs("initial-debt-amount").value.replace(',', '.'));
+            if (!isNaN(initialAmount) && initialAmount >= 0) {
+                await setInitialTotalDebt(initialAmount);
+                qs("initial-debt-amount").value = '';
+            } else {
+                alert("Please enter a valid non-negative amount for the total debt.");
+            }
         };
+
+        // 4. Обработчик: Логирование Погашения
+        qs("debt-repayment-form").onsubmit = async (e) => {
+            e.preventDefault();
+            const repaymentAmount = parseFloat(qs("repayment-amount").value.replace(',', '.'));
+            if (!isNaN(repaymentAmount) && repaymentAmount > 0) {
+                await addDebtRepaymentLog(repaymentAmount);
+                qs("repayment-amount").value = '';
+            } else {
+                alert("Please enter a valid positive amount for the repayment.");
+            }
+        };
+        
+        // CRUD (для истории транзакций)
+        window.deleteTransaction = deleteTransaction;
+        window.updateTransaction = updateTransaction;
+        window.editTransaction = (id, currentType, currentAmount, currentDescription) => {
+            const newAmountStr = prompt(`Enter new amount for ${currentDescription}:`, currentAmount);
+            if (newAmountStr === null) return; 
+            const newAmount = parseFloat(newAmountStr.replace(',', '.'));
+            if (isNaN(newAmount) || newAmount < 0) {
+                alert("Invalid amount entered. Please enter a positive number.");
+                return;
+            }
+            const newDescription = prompt(`Enter new description for ${currentType}:`, currentDescription) || currentDescription;
+            updateTransaction(id, newAmount, newDescription);
+        }
+
     </script>
 </body>
 </html>
