@@ -8,7 +8,7 @@ import {
   orderBy,
   doc,
   deleteDoc,
-  getDocs, // <-- ИСПРАВЛЕНО
+  getDocs, 
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const GOALS_COLLECTION = 'goals';
@@ -99,9 +99,8 @@ function subscribeToGoals(userId) {
         
         const startDate = qs('start-date').value;
         const endDate = qs('end-date').value;
-        if(startDate && endDate) {
-             loadLogsForUser(startDate, endDate); 
-        }
+        // Загружаем логи без фильтра по дате для правильного расчета кумулятивной суммы
+        loadLogsForUser(); 
     });
 }
 
@@ -147,42 +146,49 @@ export const addMotivationLog = async (goalId, score, notes) => {
         notes: notes,
         timestamp: Date.now()
     });
+    // После добавления лога обновляем данные, чтобы пересчитать кумулятивный график
+    loadLogsForUser(); 
 };
 
 export const deleteLog = async (id) => {
     if (confirm("Are you sure you want to delete this log entry?")) {
         await deleteDoc(doc(db, LOGS_COLLECTION, id));
-        
-        const startDate = qs('start-date').value;
-        const endDate = qs('end-date').value;
-        if(startDate && endDate) {
-             loadLogsForUser(startDate, endDate); 
-        }
+        // После удаления лога обновляем данные, чтобы пересчитать кумулятивный график
+        loadLogsForUser(); 
     }
 };
 
 /**
- * Загружает логи мотивации с фильтрацией по диапазону дат.
+ * Загружает ВСЕ логи мотивации для правильного расчета кумулятивной суммы.
+ * Фильтрация по дате происходит в JS для отображения истории и графика.
  */
-export const loadLogsForUser = (startDateStr, endDateStr) => {
+export const loadLogsForUser = () => {
     if (!currentUserId) return;
     
-    const startTime = dateToTimestamp(startDateStr);
-    const endTime = dateToTimestampEnd(endDateStr);
-
+    // Запрашиваем ВСЕ логи, сортируя по дате, чтобы гарантировать правильный кумулятивный расчет.
     const q = query(
         collection(db, LOGS_COLLECTION),
         where("userId", "==", currentUserId),
-        where("timestamp", ">=", startTime),
-        where("timestamp", "<=", endTime),
         orderBy("timestamp", "asc")
     );
 
     getDocs(q).then((snapshot) => {
-        const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const allLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        renderMotivationChart(logs);
-        renderLogHistory(logs);
+        // Получаем текущий диапазон дат для фильтрации истории и графика
+        const startDateStr = qs('start-date').value;
+        const endDateStr = qs('end-date').value;
+        const startTime = dateToTimestamp(startDateStr);
+        const endTime = dateToTimestampEnd(endDateStr);
+
+        // Фильтруем логи только для отображения в таблице истории
+        const filteredLogs = allLogs.filter(log => 
+             log.timestamp >= startTime && log.timestamp <= endTime
+        );
+
+        // Используем ВСЕ логи для КУМУЛЯТИВНОГО расчета, но отображаем только отфильтрованные данные
+        renderMotivationChart(allLogs, startDateStr, endDateStr);
+        renderLogHistory(filteredLogs);
     }).catch(error => {
         console.error("Error loading motivation logs:", error);
     });
@@ -191,19 +197,44 @@ export const loadLogsForUser = (startDateStr, endDateStr) => {
 
 // --- ФУНКЦИЯ ГРАФИКА ---
 
-function renderMotivationChart(logs) {
+function renderMotivationChart(allLogs, startDateStr, endDateStr) {
     if (!allGoals || allGoals.length === 0) {
         if (chartMotivation) chartMotivation.destroy();
         return; 
     }
 
-    const { dates, scoresByGoal } = aggregateLogsByGoalAndDate(logs);
+    // 1. Агрегация: Получаем кумулятивные данные
+    const { cumulativeScoresByGoal, allSortedDates } = aggregateLogsByGoalAndDate(allLogs);
     
+    const startTime = dateToTimestamp(startDateStr);
+    const endTime = dateToTimestampEnd(endDateStr);
+    
+    // 2. Определяем метки для отображения (только в заданном диапазоне)
+    const displayDates = allSortedDates.filter(dateKey => {
+        const dateTimestamp = new Date(dateKey).getTime();
+        return dateTimestamp >= startTime && dateTimestamp <= endTime;
+    });
+
+    // 3. Создаем наборы данных (datasets)
     const datasets = allGoals.map((goal) => {
-        const goalScores = scoresByGoal[goal.id] || {};
         const color = getRandomColor();
+        const cumulativeScores = cumulativeScoresByGoal[goal.id] || {};
         
-        const data = dates.map(date => goalScores[date] || 0);
+        // Используем функцию, чтобы найти ближайшее предыдущее кумулятивное значение, 
+        // чтобы график не начинался с нуля, если в первый день диапазона нет лога.
+        const data = displayDates.map(dateKey => {
+             // Ищем точное значение на эту дату
+             if (cumulativeScores[dateKey] !== undefined) return cumulativeScores[dateKey];
+             
+             // Ищем ближайшее предыдущее значение (для ровной линии)
+             const index = allSortedDates.indexOf(dateKey);
+             for(let i = index; i >= 0; i--) {
+                 if (cumulativeScores[allSortedDates[i]] !== undefined) {
+                     return cumulativeScores[allSortedDates[i]];
+                 }
+             }
+             return 0; // Начинаем с 0, если нет логов до начала диапазона
+        });
         
         return {
             label: goal.title,
@@ -221,7 +252,7 @@ function renderMotivationChart(logs) {
     chartMotivation = new Chart(qs('chartMotivation'), {
         type: 'line',
         data: {
-            labels: dates,
+            labels: displayDates,
             datasets: datasets
         },
         options: {
@@ -232,7 +263,8 @@ function renderMotivationChart(logs) {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Daily Score Sum'
+                        // Название изменено на "Кумулятивный счет"
+                        text: 'Cumulative Score' 
                     }
                 },
                 x: {
@@ -248,19 +280,21 @@ function renderMotivationChart(logs) {
                 },
                 title: {
                     display: true,
-                    text: 'Progress Per Goal (Filtered Period)'
+                    text: 'Cumulative Progress Per Goal (Filtered Period)'
                 }
             }
         }
     });
 }
 
-// --- ФУНКЦИЯ АГРЕГАЦИИ ---
+// --- ФУНКЦИЯ АГРЕГАЦИИ (ИСПРАВЛЕНА НА КУМУЛЯТИВНУЮ СУММУ) ---
 
 function aggregateLogsByGoalAndDate(logs) {
-    const scoresByGoal = {};
+    const dailyScoresByGoal = {};
+    const cumulativeScoresByGoal = {};
     const uniqueDates = new Set();
     
+    // 1. Сначала рассчитываем ЕЖЕДНЕВНЫЕ суммы для каждой цели
     logs.forEach(log => {
         const dateKey = new Date(log.timestamp).toISOString().substring(0, 10);
         uniqueDates.add(dateKey);
@@ -268,16 +302,34 @@ function aggregateLogsByGoalAndDate(logs) {
         const goalId = log.goalId;
         const score = log.score;
 
-        if (!scoresByGoal[goalId]) {
-            scoresByGoal[goalId] = {};
+        if (!dailyScoresByGoal[goalId]) {
+            dailyScoresByGoal[goalId] = {};
         }
-
-        scoresByGoal[goalId][dateKey] = (scoresByGoal[goalId][dateKey] || 0) + score;
+        // Суммируем все очки, добавленные за один день по одной цели
+        dailyScoresByGoal[goalId][dateKey] = (dailyScoresByGoal[goalId][dateKey] || 0) + score;
     });
 
-    const sortedDates = Array.from(uniqueDates).sort();
+    const allSortedDates = Array.from(uniqueDates).sort();
 
-    return { dates: sortedDates, scoresByGoal };
+    // 2. Затем рассчитываем КУМУЛЯТИВНУЮ сумму для каждой цели
+    
+    for (const goal of allGoals) {
+        const goalId = goal.id;
+        const dailyScores = dailyScoresByGoal[goalId] || {};
+        cumulativeScoresByGoal[goalId] = {};
+        
+        let cumulativeSum = 0;
+        
+        // Итерируемся по ВСЕМ уникальным датам в хронологическом порядке
+        for (const dateKey of allSortedDates) {
+            const dailyIncrease = dailyScores[dateKey] || 0;
+            cumulativeSum += dailyIncrease;
+            cumulativeScoresByGoal[goalId][dateKey] = cumulativeSum;
+        }
+    }
+    
+    // Возвращаем кумулятивные данные и все даты (для построения графика)
+    return { cumulativeScoresByGoal, allSortedDates };
 }
 
 
@@ -327,6 +379,7 @@ export const initMotivationController = (userId) => {
     // 2. Начинаем с подписки на цели (Goals)
     subscribeToGoals(userId); 
     
-    // 3. Загружаем логи, используя начальный диапазон дат
-    loadLogsForUser(qs('start-date').value, qs('end-date').value);
+    // 3. Добавляем слушатели на изменение дат для обновления графика
+    qs('start-date').addEventListener('change', loadLogsForUser);
+    qs('end-date').addEventListener('change', loadLogsForUser);
 };
