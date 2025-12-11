@@ -306,8 +306,10 @@ function renderCharts(variableData, settings) {
 
 // 1. Salary vs Debt (Doughnut)
 function renderChartFixedObligations(settings) {
-    const salary = settings.monthlySalary || 0;
+    let salary = settings.monthlySalary || 0;
     const debt = settings.monthlyDebt || 0;
+    salary -= debt
+
     if (charts.fixedObligations) charts.fixedObligations.destroy();
     charts.fixedObligations = new Chart(qs('chartFixedObligations'), {
         type: 'doughnut', 
@@ -324,8 +326,9 @@ function renderChartFixedObligations(settings) {
 }
 // 2. Salary vs Debt vs Savings (Doughnut)
 function renderChartFixedBreakdown(settings) {
-    const salary = settings.monthlySalary || 0;
+    let salary = settings.monthlySalary || 0;
     const debt = settings.monthlyDebt || 0;
+    salary -= debt;
     const savings = settings.fixedSavings || 0;
     if (charts.fixedBreakdown) charts.fixedBreakdown.destroy();
     charts.fixedBreakdown = new Chart(qs('chartFixedBreakdown'), {
@@ -343,8 +346,9 @@ function renderChartFixedBreakdown(settings) {
 }
 // 3. Total Income vs Total Obligations (Doughnut)
 function renderChartTotalFlow(data, settings) {
-    const fixedSalary = settings.monthlySalary || 0;
+    let fixedSalary = settings.monthlySalary || 0;
     const fixedDebt = settings.monthlyDebt || 0;
+    fixedSalary -= fixedDebt;
     const fixedSavings = settings.fixedSavings || 0;
     const totalBonus = data.filter(d => d.type === 'Bonus').reduce((sum, d) => sum + d.amount, 0);
     const totalExpenseVariable = data.filter(d => d.type === 'Expense').reduce((sum, d) => sum + d.amount, 0);
