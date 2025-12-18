@@ -291,7 +291,7 @@ export function initSelfTask() {
     document.querySelector('#self-task').style.display = 'block';
     highlightToday();
     initTaskPersistence();
-}
+} 
 
 function highlightToday() {
     const date = new Date();
