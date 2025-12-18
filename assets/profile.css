@@ -374,88 +374,100 @@ h4 {
     display: none;
     margin-top: 70px;
     cursor: pointer;
-}
-
-/* Контейнер для таблицы, чтобы появилась прокрутка на телефонах */
-.table-container {
     overflow-x: auto;
-    margin: 20px 0;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
     width: 100%;
     border-collapse: collapse;
-    background-color: #fff;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    min-width: 600px; /* Чтобы колонки не слипались */
+    table-layout: fixed; /* ГЛАВНОЕ: заставляет колонки сжиматься */
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px; /* Чуть меньше шрифт для экономии места */
 }
 
-caption {
-    padding: 15px;
-    font-size: 1.5rem;
-    font-weight: bold;
-    color: #333;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    background: #f8f9fa;
-    border-radius: 12px 12px 0 0;
-}
-
-/* Стили заголовков */
+/* Названия дней/заголовки */
 th {
-    background-color: #4a90e2; /* Синий цвет как в профиле */
+    background-color: var(--primary-color);
     color: white;
+    padding: 12px 8px;
+    text-align: center;
     font-weight: 600;
-    padding: 12px 15px;
-    text-align: center;
     text-transform: uppercase;
-    font-size: 0.85rem;
-    border: 1px solid #357abd;
+    font-size: 12px;
+    word-wrap: break-word; /* Перенос слов внутри заголовков */
 }
 
-/* Стили ячеек */
 td {
-    padding: 12px 15px;
+    padding: 12px 8px;
     text-align: center;
-    border: 1px solid #eee;
-    color: #555;
-    transition: background 0.3s ease;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-main);
+    word-wrap: break-word; /* Текст не будет растягивать ячейку */
+    vertical-align: middle;
 }
 
-/* Зебра-эффект (чередование цвета строк) */
-tr:nth-child(even) {
-    background-color: #fcfcfc;
-}
-
-/* Подсветка строки при наведении */
-tr:hover td {
-    background-color: #f1f7ff;
-    color: #000;
-}
-
-/* Скругление углов таблицы */
-table tr:last-child td:first-child { border-bottom-left-radius: 12px; }
-table tr:last-child td:last-child { border-bottom-right-radius: 12px; }
-
-/* Стиль для активной колонки (сегодня) */
+/* Сегодняшняя колонка (более узкая и аккуратная) */
 .today-column {
-    background-color: rgba(74, 144, 226, 0.15) !important; /* Светло-синий фон */
-    border-left: 2px solid #4a90e2 !important;
-    border-right: 2px solid #4a90e2 !important;
-    font-weight: bold;
-    color: #000;
+    background-color: rgba(22, 110, 211, 0.08) !important;
+    box-shadow: inset 0 0 0 1px var(--primary-color); /* Вместо толстых границ */
 }
 
-/* Выделение заголовка сегодня чуть ярче */
 th.today-column {
-    background-color: #e52c2c !important; /* Более насыщенный синий */
-    color: white !important;
+    background-color: var(--accent-color) !important;
+    box-shadow: none;
+    background-color: rgba(219, 17, 10, 0.911) !important;
+}
+
+/* Зебра для читаемости */
+tr:nth-child(even) {
+    background-color: #fcfdfe;
+}
+
+/* Мобильная версия: превращаем в список-карточки */
+@media screen and (max-width: 768px) {
+    table, thead, tbody, th, td, tr {
+        display: block;
+    }
+
+    thead tr {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    tr {
+        border: 1px solid var(--border-color);
+        margin-bottom: 10px;
+        border-radius: var(--radius);
+        background: #fff;
+    }
+
+    td {
+        border: none;
+        border-bottom: 1px solid #f9f9f9;
+        position: relative;
+        padding-left: 40% !important; /* Место под заголовок слева */
+        text-align: left;
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+    }
+
+    td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 12px;
+        width: 35%;
+        font-weight: 700;
+        color: var(--primary-color);
+        font-size: 12px;
+        text-transform: uppercase;
+    }
 }
 
 .task-done {
-    background-color: #c8e6c9 !important; /* Светло-зеленый */
-    color: #2e7d32 !important;
-    text-decoration: line-through; /* Опционально: зачеркивание */
+    color: #2ecc43;
+    text-decoration: line-through;
 }
