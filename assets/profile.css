@@ -369,3 +369,93 @@ h4 {
     cursor: pointer;
     font-size: 0.9em;
 }
+
+#self-task {
+    display: none;
+    margin-top: 70px;
+    cursor: pointer;
+}
+
+/* Контейнер для таблицы, чтобы появилась прокрутка на телефонах */
+.table-container {
+    overflow-x: auto;
+    margin: 20px 0;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-width: 600px; /* Чтобы колонки не слипались */
+}
+
+caption {
+    padding: 15px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #333;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    background: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+}
+
+/* Стили заголовков */
+th {
+    background-color: #4a90e2; /* Синий цвет как в профиле */
+    color: white;
+    font-weight: 600;
+    padding: 12px 15px;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    border: 1px solid #357abd;
+}
+
+/* Стили ячеек */
+td {
+    padding: 12px 15px;
+    text-align: center;
+    border: 1px solid #eee;
+    color: #555;
+    transition: background 0.3s ease;
+}
+
+/* Зебра-эффект (чередование цвета строк) */
+tr:nth-child(even) {
+    background-color: #fcfcfc;
+}
+
+/* Подсветка строки при наведении */
+tr:hover td {
+    background-color: #f1f7ff;
+    color: #000;
+}
+
+/* Скругление углов таблицы */
+table tr:last-child td:first-child { border-bottom-left-radius: 12px; }
+table tr:last-child td:last-child { border-bottom-right-radius: 12px; }
+
+/* Стиль для активной колонки (сегодня) */
+.today-column {
+    background-color: rgba(74, 144, 226, 0.15) !important; /* Светло-синий фон */
+    border-left: 2px solid #4a90e2 !important;
+    border-right: 2px solid #4a90e2 !important;
+    font-weight: bold;
+    color: #000;
+}
+
+/* Выделение заголовка сегодня чуть ярче */
+th.today-column {
+    background-color: #e52c2c !important; /* Более насыщенный синий */
+    color: white !important;
+}
+
+.task-done {
+    background-color: #c8e6c9 !important; /* Светло-зеленый */
+    color: #2e7d32 !important;
+    text-decoration: line-through; /* Опционально: зачеркивание */
+}

@@ -286,3 +286,69 @@ async function deleteSubgoal(goalId, subgoalId) {
         console.error("Error deleting sub-goal: ", e);
     }
 }
+
+export function initSelfTask() {
+    document.querySelector('#self-task').style.display = 'block';
+    highlightToday();
+    initTaskPersistence();
+}
+
+function highlightToday() {
+    const date = new Date();
+    let dayIndex = date.getDay(); // 0 (Вс) - 6 (Сб)
+
+    // Преобразуем формат (0 - Пн, 1 - Вт, ... 6 - Вс), 
+    // так как в вашей таблице Пн идет первым
+    // (dayIndex + 6) % 7 делает так: Пн(1)->0, Вт(2)->1 ... Вс(0)->6
+    const tableIndex = (dayIndex + 6) % 7;
+
+    const table = document.querySelector('#self-task table');
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tr');
+
+    rows.forEach(row => {
+        // Находим ячейку в строке по индексу дня
+        const cell = row.cells[tableIndex];
+        if (cell) {
+            cell.classList.add('today-column');
+        }
+    });
+}
+
+function initTaskPersistence() {
+    const table = document.querySelector('#self-task table');
+    if (!table) return;
+
+    const cells = table.querySelectorAll('td');
+    const storageKey = 'schedule_done_tasks';
+
+    // 1. Загружаем сохраненные индексы из localStorage
+    let doneTasks = JSON.parse(localStorage.getItem(storageKey)) || [];
+
+    // 2. Применяем сохраненный стиль ко всем ячейкам
+    cells.forEach((cell, index) => {
+        // Добавляем уникальный ID ячейке (для удобства)
+        cell.dataset.index = index;
+
+        // Если этот индекс есть в базе - красим
+        if (doneTasks.includes(index)) {
+            cell.classList.add('task-done');
+        }
+
+        // 3. Вешаем событие двойного клика (dblclick)
+        cell.addEventListener('dblclick', () => {
+            const isDone = cell.classList.toggle('task-done');
+            
+            // Обновляем массив индексов
+            if (isDone) {
+                if (!doneTasks.includes(index)) doneTasks.push(index);
+            } else {
+                doneTasks = doneTasks.filter(id => id !== index);
+            }
+
+            // Сохраняем обратно в localStorage
+            localStorage.setItem(storageKey, JSON.stringify(doneTasks));
+        });
+    });
+}
